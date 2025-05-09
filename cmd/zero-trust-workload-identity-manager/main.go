@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
+	spiffev1alpha1 "github.com/spiffe/spire-controller-manager/api/v1alpha1"
 	"os"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -41,6 +42,7 @@ import (
 	operatoropenshiftiov1alpha1 "github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
 	spiffeCsiDriverController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/spiffe-csi-driver"
 	spireAgentController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/spire-agent"
+	spireOIDCDiscoveryProviderController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/spire-oidc-discovery-provider"
 	spireServerController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/spire-server"
 	staticResourceController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/static-resource-controller"
 	"github.com/openshift/zero-trust-workload-identity-manager/pkg/operator/bootstrap"
@@ -136,8 +138,12 @@ func main() {
 
 	// Add OpenShift SCC scheme
 	if err := securityv1.AddToScheme(scheme); err != nil {
-		// handle error properly, usually fatal log and os.Exit
-		panic(err)
+		setupLog.Error(err, "unable to add securityv1 scheme")
+		os.Exit(1)
+	}
+	if err := spiffev1alpha1.AddToScheme(scheme); err != nil {
+		setupLog.Error(err, "unable to add spiffev1alpha1 scheme")
+		os.Exit(1)
 	}
 
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
@@ -193,6 +199,14 @@ func main() {
 	}
 	if err = spiffeCsiDriverControllerManager.SetupWithManager(mgr); err != nil {
 		exitOnError(err, "unable to setup spiffe csi driver controller manager")
+	}
+
+	spireOIDCDiscoveryProviderControllerManager, err := spireOIDCDiscoveryProviderController.New(mgr)
+	if err != nil {
+		exitOnError(err, "unable to set up spire OIDC discovery provider controller manager")
+	}
+	if err = spireOIDCDiscoveryProviderControllerManager.SetupWithManager(mgr); err != nil {
+		exitOnError(err, "unable to setup spire OIDC discovery provider controller manager")
 	}
 
 	// +kubebuilder:scaffold:builder

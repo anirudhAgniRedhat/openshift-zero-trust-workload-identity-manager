@@ -4,6 +4,8 @@ metadata:
   name: "csi.spiffe.io"
   labels:
     security.openshift.io/csi-ephemeral-volume-profile: restricted
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 
 spec:
   # Only ephemeral, inline volumes are supported. There is no need for a

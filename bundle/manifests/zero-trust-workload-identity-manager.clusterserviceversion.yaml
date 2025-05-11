@@ -22,7 +22,7 @@ metadata:
     capabilities: Basic Install
     console.openshift.io/disable-operand-delete: "true"
     containerImage: ""
-    createdAt: "2025-05-08T15:46:38Z"
+    createdAt: "2025-05-11T19:32:21Z"
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "false"
     features.operators.openshift.io/csi: "true"
@@ -51,6 +51,15 @@ spec:
   apiservicedefinitions: {}
   customresourcedefinitions:
     owned:
+    - kind: ClusterFederatedTrustDomain
+      name: clusterfederatedtrustdomains.spire.spiffe.io
+      version: v1alpha1
+    - kind: ClusterSPIFFEID
+      name: clusterspiffeids.spire.spiffe.io
+      version: v1alpha1
+    - kind: ClusterStaticEntry
+      name: clusterstaticentries.spire.spiffe.io
+      version: v1alpha1
     - kind: ZeroTrustWorkloadIdentityManager
       name: zerotrustworkloadidentitymanagers.operator.openshift.io
       version: v1alpha1

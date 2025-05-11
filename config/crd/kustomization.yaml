@@ -3,6 +3,9 @@
 # It should be run by config/default
 resources:
 - bases/operator.openshift.io_zerotrustworkloadidentitymanagers.yaml
+- bases/clusterfederatedtrustdomains-spiffe-crd.yaml
+- bases/clusterspiffeids-spiffe-crd.yaml
+- bases/clusterstaticentries-spiffe-crd.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patches:

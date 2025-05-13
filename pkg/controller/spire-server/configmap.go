@@ -1,12 +1,8 @@
 package spire_server
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"strings"
-
 	"github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
 	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
 
@@ -135,19 +131,6 @@ func marshalToJSON(data map[string]interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal server.conf: %w", err)
 	}
 	return jsonBytes, nil
-}
-
-// generateConfigHash returns a SHA256 hex string of the trimmed input string
-func generateConfigHashFromString(data string) string {
-	normalized := strings.TrimSpace(data) // Removes leading/trailing whitespace and newlines
-	return generateConfigHash([]byte(normalized))
-}
-
-// generateConfigHash returns a SHA256 hex string of the trimmed input bytes
-func generateConfigHash(data []byte) string {
-	normalized := strings.TrimSpace(string(data)) // Convert to string, trim, convert back to bytes
-	hash := sha256.Sum256([]byte(normalized))
-	return hex.EncodeToString(hash[:])
 }
 
 func generateSpireControllerManagerConfigYaml(config *v1alpha1.SpireServerConfigSpec) string {

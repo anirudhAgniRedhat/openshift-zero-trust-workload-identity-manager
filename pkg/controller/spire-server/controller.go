@@ -93,7 +93,7 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	spireServerConfigMapHash := generateConfigHash(spireServerConfJSON)
+	spireServerConfigMapHash := utils.GenerateConfigHash(spireServerConfJSON)
 
 	spireControllerManagerConfig := generateSpireControllerManagerConfigYaml(&server.Spec)
 	spireControllerManagerConfigMap := generateControllerManagerConfigMap(spireControllerManagerConfig)
@@ -123,7 +123,7 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, err
 	}
 
-	spireControllerManagerConfigMapHash := generateConfigHashFromString(spireControllerManagerConfig)
+	spireControllerManagerConfigMapHash := utils.GenerateConfigHashFromString(spireControllerManagerConfig)
 
 	spireBundleCM := generateSpireBundleConfigMap()
 	if err := controllerutil.SetControllerReference(&server, spireControllerManagerConfigMap, r.scheme); err != nil {

@@ -78,6 +78,7 @@ metadata:
   name: "csi.spiffe.io"
   labels:
     security.openshift.io/csi-ephemeral-volume-profile: restricted
+    app.kubernetes.io/name: spiffe-csi-driver
     app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
     app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 
@@ -147,6 +148,12 @@ var _spireAgentSpireAgentClusterRoleBindingYaml = []byte(`kind: ClusterRoleBindi
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: "spire-agent"
+  labels:
+    app.kubernetes.io/name: "agent"
+    app.kubernetes.io/instance: "spire"
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 subjects:
   - kind: ServiceAccount
     name: "spire-agent"
@@ -176,6 +183,12 @@ var _spireAgentSpireAgentClusterRoleYaml = []byte(`kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: "spire-agent"
+  labels:
+    app.kubernetes.io/name: "agent"
+    app.kubernetes.io/instance: "spire"
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 rules:
   - apiGroups: [""]
     resources:
@@ -232,7 +245,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: spire-bundle
   namespace: zero-trust-workload-identity-manager
-
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 subjects:
   - kind: ServiceAccount
     name: spire-server
@@ -263,6 +281,12 @@ apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: spire-bundle
   namespace: zero-trust-workload-identity-manager
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 rules:
   - apiGroups: [""]
     resources: [configmaps]
@@ -291,6 +315,12 @@ var _spireControllerManagerSpireControllerManagerClusterRoleBindingYaml = []byte
 kind: ClusterRoleBinding
 metadata:
   name: spire-controller-manager
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -321,6 +351,12 @@ var _spireControllerManagerSpireControllerManagerClusterRoleYaml = []byte(`apiVe
 kind: ClusterRole
 metadata:
   name: spire-controller-manager
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 rules:
   - apiGroups: [""]
     resources: ["namespaces"]
@@ -386,6 +422,12 @@ kind: RoleBinding
 metadata:
   name: spire-controller-manager-leader-election
   namespace: zero-trust-workload-identity-manager
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -417,6 +459,12 @@ kind: Role
 metadata:
   name: spire-controller-manager-leader-election
   namespace: zero-trust-workload-identity-manager
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 rules:
   - apiGroups: [""]
     resources: ["configmaps"]
@@ -486,6 +534,12 @@ var _spireControllerManagerSpireControllerManagerWebhookValidatingWebhookYaml = 
 kind: ValidatingWebhookConfiguration
 metadata:
   name: spire-controller-manager-webhook
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 webhooks:
   - admissionReviewVersions: ["v1"]
     clientConfig:
@@ -566,6 +620,12 @@ kind: Service
 metadata:
   name: spire-spiffe-oidc-discovery-provider
   namespace: zero-trust-workload-identity-manager
+  labels:
+    app.kubernetes.io/name: spiffe-oidc-discovery-provider
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 spec:
   type: ClusterIP
   ports:
@@ -597,7 +657,12 @@ var _spireServerSpireServerClusterRoleBindingYaml = []byte(`kind: ClusterRoleBin
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: spire-server
-
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 subjects:
   - kind: ServiceAccount
     name: spire-server
@@ -627,6 +692,12 @@ var _spireServerSpireServerClusterRoleYaml = []byte(`kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: spire-server
+  labels:
+    app.kubernetes.io/name: server
+    app.kubernetes.io/instance: spire
+    app.kubernetes.io/version: "1.12.0"
+    app.kubernetes.io/managed-by: "zero-trust-workload-identity-manager"
+    app.kubernetes.io/part-of: "zero-trust-workload-identity-manager"
 rules:
   - apiGroups: [authentication.k8s.io]
     resources: [tokenreviews]

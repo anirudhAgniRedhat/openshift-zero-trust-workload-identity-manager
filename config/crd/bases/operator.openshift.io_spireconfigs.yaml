@@ -4,35 +4,31 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
-  name: zerotrustworkloadidentitymanagers.operator.openshift.io
+  name: spireconfigs.operator.openshift.io
 spec:
   group: operator.openshift.io
   names:
-    kind: ZeroTrustWorkloadIdentityManager
-    listKind: ZeroTrustWorkloadIdentityManagerList
-    plural: zerotrustworkloadidentitymanagers
-    singular: zerotrustworkloadidentitymanager
+    kind: SpireConfig
+    listKind: SpireConfigList
+    plural: spireconfigs
+    singular: spireconfig
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
-          ZeroTrustWorkloadIdentityManager defines the configuration for the
-          operator that manages the lifecycle of SPIRE components in OpenShift
-          clusters.
+          SpireConfig defines the detailed configuration of the SPIRE components
+          managed by the ZeroTrustWorkloadIdentityManager.
 
-          This CRD is responsible for:
-          - Enabling or disabling zero-trust workload identity management
-          - Controlling which operand components (spire-server, spire-agent, spiffe-csi-driver, oidc-discovery-provider) are deployed
-          - Managing higher-level integration with service meshes (e.g., Istio), security policies, and SPIRE deployment modes
+          This CRD captures the user-facing configuration for the following SPIRE operands:
+          - spire-server: trust domain, datastore, plugins, etc.
+          - spire-agent: socket path, node attestation, workload attestors
+          - spiffe-csi-driver: configuration for projected identity delivery
+          - oidc-discovery-provider: optional OIDC endpoint configuration
 
-          Note: This resource is **operator-facing only**. It should not contain
-          low-level configuration for SPIRE components, which is managed separately
-          in the SpireConfig CRD.
-
-          The controller will reconcile the desired state of SPIRE deployment using
-          information provided in this CR.
+          This CRD should be created and updated by cluster administrators or automation tools
+          that require fine-grained control over the SPIRE deployment.
         properties:
           apiVersion:
             description: |-
@@ -52,8 +48,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: ZeroTrustWorkloadIdentityManagerSpec defines the desired
-              state of ZeroTrustWorkloadIdentityManager
+            description: SpireConfigSpec is for configuring the spire-operands behavior.
             properties:
               affinity:
                 description: |-
@@ -977,25 +972,13 @@ spec:
                         x-kubernetes-list-type: atomic
                     type: object
                 type: object
-              labels:
-                additionalProperties:
-                  type: string
-                description: labels to apply to all resources created for operator
-                  deployment.
-                type: object
-                x-kubernetes-map-type: granular
-              logLevel:
-                default: 1
-                description: logLevel supports value range as per [kubernetes logging
-                  guidelines](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md#what-method-to-use).
-                format: int32
-                maximum: 5
-                minimum: 1
-                type: integer
-              namespace:
-                default: zero-trust-workload-identity-manager
-                description: namespace is for configuring the namespace to install
-                  the operator deployments.
+              bundleConfigMap:
+                default: spire-bundle
+                description: bundleConfigMap is Configmap name for Spire bundle
+                type: string
+              clusterName:
+                description: clusterName will have the cluster name required to configure
+                  spire operands.
                 type: string
               nodeSelector:
                 additionalProperties:
@@ -1005,66 +988,476 @@ spec:
                   ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
                 type: object
                 x-kubernetes-map-type: atomic
-              resources:
-                description: |-
-                  resources are for defining the resource requirements.
-                  Cannot be updated.
-                  ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+              spiffeCSIDriverConfig:
+                description: spiffeCSIDriverConfig has config for spiffe csi driver.
                 properties:
-                  claims:
-                    description: |-
-                      Claims lists the names of resources, defined in spec.resourceClaims,
-                      that are used by this container.
-
-                      This is an alpha field and requires enabling the
-                      DynamicResourceAllocation feature gate.
-
-                      This field is immutable. It can only be set for containers.
-                    items:
-                      description: ResourceClaim references one entry in PodSpec.ResourceClaims.
-                      properties:
-                        name:
-                          description: |-
-                            Name must match the name of one entry in pod.spec.resourceClaims of
-                            the Pod where this field is used. It makes that resource available
-                            inside a container.
-                          type: string
-                        request:
-                          description: |-
-                            Request is the name chosen for a request in the referenced claim.
-                            If empty, everything from the claim is made available, otherwise
-                            only the result of this request.
-                          type: string
-                      required:
-                      - name
-                      type: object
-                    type: array
-                    x-kubernetes-list-map-keys:
-                    - name
-                    x-kubernetes-list-type: map
-                  limits:
-                    additionalProperties:
-                      anyOf:
-                      - type: integer
-                      - type: string
-                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      x-kubernetes-int-or-string: true
-                    description: |-
-                      Limits describes the maximum amount of compute resources allowed.
-                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                  agentSocketPath:
+                    default: /run/spire/agent-sockets/spire-agent.sock
+                    description: AgentSocket is the path to the agent socket.
+                    type: string
+                  pluginName:
+                    default: csi.spiffe.io
+                    description: PluginName defines the name of the CSI plugin.
+                    type: string
+                type: object
+              spiffeOIDCProviderConfigMap:
+                description: spiffeOIDCProviderConfig has config for OIDC discovery
+                  provider
+                properties:
+                  agentSocketName:
+                    default: spire-agent.sock
+                    description: AgentSocket is the name of the agent socket.
+                    type: string
+                  jwtIssuer:
+                    description: jwtIssuerPath to JWT issuer. Defaults to oidc-discovery.$trustDomain
+                      if unset
+                    type: string
+                  replicaCount:
+                    default: 1
+                    description: ReplicaCount is the number of replicas for the OIDC
+                      provider.
+                    type: integer
+                  spireOidcTlsConfig:
+                    description: spireOidcTlsConfig has the tls config specification
+                      for OIDC discovery provider
+                    properties:
+                      certManager:
+                        description: Configure cert-manager integration for automated
+                          certificate management.
+                        properties:
+                          certificate:
+                            description: Certificate contains certificate-specific
+                              options.
+                            properties:
+                              dnsNames:
+                                default: []
+                                description: DNSNames to include in the certificate
+                                  request.
+                                items:
+                                  type: string
+                                type: array
+                              issuerRef:
+                                description: IssuerRef configures which cert-manager
+                                  Issuer/ClusterIssuer to use.
+                                properties:
+                                  group:
+                                    default: ""
+                                    description: Group is the API group of the issuer
+                                      (e.g., "cert-manager.io").
+                                    type: string
+                                  kind:
+                                    default: Issuer
+                                    description: Kind of the issuer resource (Issuer
+                                      or ClusterIssuer).
+                                    type: string
+                                  name:
+                                    default: ""
+                                    description: Name of the issuer to be used.
+                                    type: string
+                                type: object
+                            required:
+                            - issuerRef
+                            type: object
+                          enabled:
+                            default: false
+                            description: Enable TLS provisioning via cert-manager.
+                            type: boolean
+                          issuer:
+                            description: Issuer contains cert-manager issuer configuration.
+                            properties:
+                              acme:
+                                description: ACME contains configuration for Let's
+                                  Encrypt / ACME issuer.
+                                properties:
+                                  email:
+                                    default: ""
+                                    description: Email address for Let's Encrypt registration
+                                      (mandatory for ACME).
+                                    type: string
+                                  server:
+                                    default: https://acme-v02.api.letsencrypt.org/directory
+                                    description: Server is the ACME server URL (production
+                                      or staging).
+                                    type: string
+                                type: object
+                              create:
+                                default: true
+                                description: Create indicators whether to create the
+                                  issuer resource.
+                                type: boolean
+                            required:
+                            - acme
+                            - create
+                            type: object
+                        required:
+                        - certificate
+                        - enabled
+                        - issuer
+                        type: object
+                      externalSecret:
+                        description: Configure external secret support for custom
+                          TLS certificate/key.
+                        properties:
+                          enabled:
+                            default: false
+                            description: Enable usage of external Kubernetes TLS Secret.
+                            type: boolean
+                          secretName:
+                            default: ""
+                            description: SecretName is the name of the TLS Secret
+                              to use.
+                            type: string
+                        required:
+                        - enabled
+                        type: object
+                      spireEnabled:
+                        default: true
+                        description: Enable SPIRE integration to secure the oidc-discovery-provider.
+                        type: boolean
+                    required:
+                    - certManager
+                    - externalSecret
+                    - spireEnabled
                     type: object
-                  requests:
-                    additionalProperties:
-                      anyOf:
-                      - type: integer
-                      - type: string
-                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      x-kubernetes-int-or-string: true
+                type: object
+              spireAgentConfig:
+                description: spireAgentConfig has config for spire agents.
+                properties:
+                  enabled:
+                    default: true
+                    description: Enabled specifies whether the Spire Agent is enabled.
+                    type: boolean
+                  nodeAttestor:
+                    description: NodeAttestor specifies the configuration for the
+                      Node Attestor.
+                    properties:
+                      k8sPSATEnabled:
+                        default: true
+                        description: k8sPSATEnabled tells if k8sPSAT configuration
+                          is enabled
+                        type: boolean
+                    type: object
+                  workloadAttestors:
+                    description: WorkloadAttestors specifies the configuration for
+                      the Workload Attestors.
+                    properties:
+                      disableContainerSelectors:
+                        default: false
+                        description: |-
+                          DisableContainerSelectors specifies whether to disable container selectors in the Kubernetes workload attestor.
+                          Set to true if using holdApplicationUntilProxyStarts in Istio
+                        type: boolean
+                      k8sEnabled:
+                        default: true
+                        description: k8sEnabled explains if the configuration is enabled
+                          for k8s.
+                        type: boolean
+                      useNewContainerLocator:
+                        default: true
+                        description: |-
+                          UseNewContainerLocator enables the new container locator algorithm that has support for cgroups v2.
+                          Defaults to true
+                        type: boolean
+                      workloadAttestorsVerification:
+                        description: |-
+                          workloadAttestorsVerification tells what kind of verification to do against kubelet.
+                          auto will first attempt to use hostCert, and then fall back to apiServerCA.
+                          Valid options are [auto, hostCert, apiServerCA, skip]
+                        properties:
+                          hostCertBasePath:
+                            default: /var/lib/kubelet/pki
+                            description: hostCertBasePath specifies the base Path
+                              where kubelet places its certificates.
+                            type: string
+                          hostCertFileName:
+                            description: hostCertFileName specifies the file name
+                              for the host certificate.
+                            type: string
+                          type:
+                            description: Type specifies the type of verification to
+                              be used.
+                            type: string
+                        type: object
+                    type: object
+                type: object
+              spireServerConfig:
+                description: spireServerConfig has config for spire server.
+                properties:
+                  caSubject:
+                    description: CASubject contains subject information for the Spire
+                      CA.
+                    properties:
+                      commonName:
+                        description: CommonName specifies the common name for the
+                          CA.
+                        type: string
+                      country:
+                        description: Country specifies the country for the CA.
+                        type: string
+                      organization:
+                        description: Organization specifies the organization for the
+                          CA.
+                        type: string
+                    type: object
+                  persistence:
+                    description: persistence has config for spire server volume related
+                      configs
+                    properties:
+                      accessMode:
+                        default: ReadWriteOnce
+                        description: Access mode for the volume.
+                        enum:
+                        - ReadWriteOnce
+                        - ReadWriteOncePod
+                        - ReadWriteMany
+                        type: string
+                      hostPath:
+                        default: ""
+                        description: Host path to be used when type is hostPath.
+                        type: string
+                      size:
+                        default: 1Gi
+                        description: Size of the persistent volume (e.g., 1Gi).
+                        pattern: ^[1-9][0-9]*Gi$
+                        type: string
+                      storageClass:
+                        default: "null"
+                        description: StorageClass to be used for the PVC.
+                        type: string
+                      type:
+                        default: pvc
+                        description: Type of volume to use for persistence.
+                        enum:
+                        - pvc
+                        - hostPath
+                        - emptyDir
+                        type: string
+                    required:
+                    - accessMode
+                    - size
+                    - type
+                    type: object
+                  spireSQLConfig:
+                    description: SpireSQLConfig configures the Spire SQL datastore
+                      backend.
+                    properties:
+                      clientCertPath:
+                        type: string
+                      clientKeyPath:
+                        type: string
+                      connMaxLifetime:
+                        default: 0
+                        description: Max time (in seconds) a connection may live.
+                        minimum: 0
+                        type: integer
+                      databaseName:
+                        default: spire
+                        description: Only used if databaseType != sqlite3.
+                        type: string
+                      databaseType:
+                        default: sqlite3
+                        description: Type of database to use.
+                        enum:
+                        - sqlite3
+                        - postgres
+                        - mysql
+                        - aws_postgresql
+                        - aws_mysql
+                        type: string
+                      disableMigration:
+                        default: false
+                        description: If true, disables DB auto-migration.
+                        type: boolean
+                      externalSecret:
+                        description: External secret for main DB credentials.
+                        properties:
+                          enabled:
+                            default: false
+                            description: Whether to enable the external secret.
+                            type: boolean
+                          key:
+                            default: ""
+                            description: Secret key whose value is the password.
+                            type: string
+                          name:
+                            default: ""
+                            description: Secret name in the same namespace.
+                            type: string
+                        type: object
+                      host:
+                        default: ""
+                        description: Host of the database.
+                        type: string
+                      maxIdleConns:
+                        default: 2
+                        minimum: 0
+                        type: integer
+                      maxOpenConns:
+                        default: 100
+                        description: DB pool config
+                        minimum: 0
+                        type: integer
+                      options:
+                        default: []
+                        description: Extra DB options.
+                        items:
+                          type: string
+                        type: array
+                      password:
+                        default: ""
+                        description: Password for DB connection.
+                        type: string
+                      port:
+                        default: 0
+                        description: Port for DB connection (defaults depend on type).
+                        minimum: 0
+                        type: integer
+                      readOnly:
+                        description: Optional read-only DB config.
+                        properties:
+                          enabled:
+                            default: false
+                            description: Enable read-only SQL connection.
+                            type: boolean
+                          externalSecret:
+                            description: Optional external secret for read-only DB.
+                            properties:
+                              enabled:
+                                default: false
+                                description: Whether to enable the external secret.
+                                type: boolean
+                              key:
+                                default: ""
+                                description: Secret key whose value is the password.
+                                type: string
+                              name:
+                                default: ""
+                                description: Secret name in the same namespace.
+                                type: string
+                            type: object
+                          host:
+                            default: ""
+                            description: Host of the read-only DB.
+                            type: string
+                          options:
+                            default: []
+                            description: DB options as key=value strings.
+                            items:
+                              type: string
+                            type: array
+                          password:
+                            default: ""
+                            description: Password for the username.
+                            type: string
+                          port:
+                            default: 0
+                            description: Port for the DB. If 0, defaults apply (5432/3306).
+                            minimum: 0
+                            type: integer
+                          username:
+                            default: spire
+                            description: Username to connect to DB.
+                            type: string
+                        required:
+                        - externalSecret
+                        type: object
+                      region:
+                        default: ""
+                        description: AWS region, if using aws_* types.
+                        type: string
+                      rootCAPath:
+                        default: ""
+                        description: MySQL TLS options.
+                        type: string
+                      username:
+                        default: spire
+                        description: Username for database connection.
+                        type: string
+                    required:
+                    - connMaxLifetime
+                    - databaseType
+                    - disableMigration
+                    - externalSecret
+                    - maxIdleConns
+                    - maxOpenConns
+                    - readOnly
+                    type: object
+                  spireServerKeyManager:
+                    description: spireServerKeyManager has configs for the spire server
+                      key manager.
+                    properties:
+                      diskEnabled:
+                        default: true
+                        description: diskEnabled is a flag to enable keyManager on
+                          disk.
+                        type: boolean
+                      memoryEnabled:
+                        default: false
+                        description: memoryEnabled is a flag to enable keyManager
+                          on memory
+                        type: boolean
+                    type: object
+                  spireServerResources:
                     description: |-
-                      Requests describes the minimum amount of compute resources required.
-                      If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                      otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                      resources are for defining the resource requirements.
+                      Cannot be updated.
+                      ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                    properties:
+                      claims:
+                        description: |-
+                          Claims lists the names of resources, defined in spec.resourceClaims,
+                          that are used by this container.
+
+                          This is an alpha field and requires enabling the
+                          DynamicResourceAllocation feature gate.
+
+                          This field is immutable. It can only be set for containers.
+                        items:
+                          description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                          properties:
+                            name:
+                              description: |-
+                                Name must match the name of one entry in pod.spec.resourceClaims of
+                                the Pod where this field is used. It makes that resource available
+                                inside a container.
+                              type: string
+                            request:
+                              description: |-
+                                Request is the name chosen for a request in the referenced claim.
+                                If empty, everything from the claim is made available, otherwise
+                                only the result of this request.
+                              type: string
+                          required:
+                          - name
+                          type: object
+                        type: array
+                        x-kubernetes-list-map-keys:
+                        - name
+                        x-kubernetes-list-type: map
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Limits describes the maximum amount of compute resources allowed.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        description: |-
+                          Requests describes the minimum amount of compute resources required.
+                          If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                          otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                          More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                        type: object
                     type: object
                 type: object
               tolerations:
@@ -1109,10 +1502,16 @@ spec:
                   type: object
                 type: array
                 x-kubernetes-list-type: atomic
+              trustDomain:
+                description: trustDomain to be used for the SPIFFE identifiers
+                type: string
+            required:
+            - clusterName
+            - trustDomain
             type: object
           status:
-            description: ZeroTrustWorkloadIdentityManagerStatus defines the observed
-              state of ZeroTrustWorkloadIdentityManager
+            description: SpireConfigStatus defines the observed state of spire-operand
+              reconcilation
             properties:
               conditions:
                 description: conditions holds information of the current state of
@@ -1177,6 +1576,9 @@ spec:
                 x-kubernetes-list-type: map
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: SpireConfig is a singleton, .metadata.name must be 'cluster'
+          rule: self.metadata.name == 'cluster'
     served: true
     storage: true
     subresources:

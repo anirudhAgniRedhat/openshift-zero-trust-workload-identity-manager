@@ -7,6 +7,7 @@ rules:
 - apiGroups:
   - operator.openshift.io
   resources:
+  - spireconfigs
   - zerotrustworkloadidentitymanagers
   verbs:
   - create
@@ -19,12 +20,14 @@ rules:
 - apiGroups:
   - operator.openshift.io
   resources:
+  - spireconfigs/finalizers
   - zerotrustworkloadidentitymanagers/finalizers
   verbs:
   - update
 - apiGroups:
   - operator.openshift.io
   resources:
+  - spireconfigs/status
   - zerotrustworkloadidentitymanagers/status
   verbs:
   - get

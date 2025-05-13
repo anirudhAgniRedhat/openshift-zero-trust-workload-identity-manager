@@ -19,7 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller"
+	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -37,6 +37,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	operatoropenshiftiov1alpha1 "github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
+	staticResourceController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/static-resource-controller"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -119,8 +120,13 @@ func main() {
 		// https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/metrics/filters#WithAuthenticationAndAuthorization
 		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
 	}
+	config := ctrl.GetConfigOrDie()
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	// Increase QPS and Burst to allow more concurrent API calls
+	config.QPS = 50    // Default is usually 5, increase as needed
+	config.Burst = 100 // Default is usually 10, increase as needed
+
+	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
 		WebhookServer:          webhookServer,
@@ -144,14 +150,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.ZeroTrustWorkloadIdentityManagerReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "failed to set up ZeroTrustWorkloadIdentityManager controller with manager",
-			"controller", "ZeroTrustWorkloadIdentityManager", "manager")
+	staticResourceControllerManager, err := staticResourceController.New(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to set up static resource controller manager")
 		os.Exit(1)
 	}
+	if err = staticResourceControllerManager.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "failed to set up StaticResourceReconciler controller with manager",
+			"controller", utils.ZeroTrustWorkloadIdentityManagerStaticResourceControllerName, "manager")
+		os.Exit(1)
+	}
+
 	// +kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

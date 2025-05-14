@@ -31,17 +31,9 @@ import (
 // operator that manages the lifecycle of SPIRE components in OpenShift
 // clusters.
 //
-// This CRD is responsible for:
-// - Enabling or disabling zero-trust workload identity management
-// - Controlling which operand components (spire-server, spire-agent, spiffe-csi-driver, oidc-discovery-provider) are deployed
-// - Managing higher-level integration with service meshes (e.g., Istio), security policies, and SPIRE deployment modes
-//
 // Note: This resource is **operator-facing only**. It should not contain
 // low-level configuration for SPIRE components, which is managed separately
 // in the SpireConfig CRD.
-//
-// The controller will reconcile the desired state of SPIRE deployment using
-// information provided in this CR.
 type ZeroTrustWorkloadIdentityManager struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -51,7 +43,7 @@ type ZeroTrustWorkloadIdentityManager struct {
 
 // ZeroTrustWorkloadIdentityManagerStatus defines the observed state of ZeroTrustWorkloadIdentityManager
 type ZeroTrustWorkloadIdentityManagerStatus struct {
-	// conditions holds information of the current state of the external-secrets deployment.
+	// conditions holds information of the current state of the zero-trust-workload-identity-manager deployment.
 	ConditionalStatus `json:",inline,omitempty"`
 }
 

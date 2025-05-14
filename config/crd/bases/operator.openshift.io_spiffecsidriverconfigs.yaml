@@ -4,27 +4,22 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.1
-  name: zerotrustworkloadidentitymanagers.operator.openshift.io
+  name: spiffecsidriverconfigs.operator.openshift.io
 spec:
   group: operator.openshift.io
   names:
-    kind: ZeroTrustWorkloadIdentityManager
-    listKind: ZeroTrustWorkloadIdentityManagerList
-    plural: zerotrustworkloadidentitymanagers
-    singular: zerotrustworkloadidentitymanager
+    kind: SpiffeCSIDriverConfig
+    listKind: SpiffeCSIDriverConfigList
+    plural: spiffecsidriverconfigs
+    singular: spiffecsidriverconfig
   scope: Cluster
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
-          ZeroTrustWorkloadIdentityManager defines the configuration for the
-          operator that manages the lifecycle of SPIRE components in OpenShift
-          clusters.
-
-          Note: This resource is **operator-facing only**. It should not contain
-          low-level configuration for SPIRE components, which is managed separately
-          in the SpireConfig CRD.
+          SpiffeCSIDriverConfig defines the configuration for the SPIFFE CSI Driver managed by zero trust workload identity manager.
+          This includes settings related to the registration, socket paths, plugin name and optional runtime flags that influence how the driver operates.
         properties:
           apiVersion:
             description: |-
@@ -44,8 +39,8 @@ spec:
           metadata:
             type: object
           spec:
-            description: ZeroTrustWorkloadIdentityManagerSpec defines the desired
-              state of ZeroTrustWorkloadIdentityManager
+            description: SpiffeCSIDriverConfigSpec will have specifications for configuration
+              related to the spiffe-csi driver.
             properties:
               affinity:
                 description: |-
@@ -969,26 +964,18 @@ spec:
                         x-kubernetes-list-type: atomic
                     type: object
                 type: object
+              agentSocketPath:
+                default: /run/spire/agent-sockets/spire-agent.sock
+                description: AgentSocket is the path to spiffe csi driver the agent
+                  socket.
+                type: string
               labels:
                 additionalProperties:
                   type: string
-                description: labels to apply to all resources created for operator
-                  deployment.
+                description: labels to apply to the daemon set deployed using csi
+                  driver.
                 type: object
                 x-kubernetes-map-type: granular
-              logLevel:
-                default: 1
-                description: logLevel supports value range as per [kubernetes logging
-                  guidelines](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md#what-method-to-use).
-                format: int32
-                maximum: 5
-                minimum: 1
-                type: integer
-              namespace:
-                default: zero-trust-workload-identity-manager
-                description: namespace is for configuring the namespace to install
-                  the operator deployments.
-                type: string
               nodeSelector:
                 additionalProperties:
                   type: string
@@ -997,6 +984,11 @@ spec:
                   ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
                 type: object
                 x-kubernetes-map-type: atomic
+              pluginName:
+                default: csi.spiffe.io
+                description: PluginName defines the name of the CSI plugin, Sets the
+                  csi driver name deployed to the cluster.
+                type: string
               resources:
                 description: |-
                   resources are for defining the resource requirements.
@@ -1103,8 +1095,8 @@ spec:
                 x-kubernetes-list-type: atomic
             type: object
           status:
-            description: ZeroTrustWorkloadIdentityManagerStatus defines the observed
-              state of ZeroTrustWorkloadIdentityManager
+            description: SpiffeCSIDriverConfigStatus defines the observed state of
+              spiffe csi driver related reconciliation  made by operator
             properties:
               conditions:
                 description: conditions holds information of the current state of
@@ -1169,6 +1161,9 @@ spec:
                 x-kubernetes-list-type: map
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: SpiffeCSIDriverConfig is a singleton, .metadata.name must be 'cluster'
+          rule: self.metadata.name == 'cluster'
     served: true
     storage: true
     subresources:

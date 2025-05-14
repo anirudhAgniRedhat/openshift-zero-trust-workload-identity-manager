@@ -22,7 +22,7 @@ metadata:
     capabilities: Basic Install
     console.openshift.io/disable-operand-delete: "true"
     containerImage: ""
-    createdAt: "2025-05-13T20:15:34Z"
+    createdAt: "2025-05-14T21:15:14Z"
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "false"
     features.operators.openshift.io/csi: "true"
@@ -60,8 +60,17 @@ spec:
     - kind: ClusterStaticEntry
       name: clusterstaticentries.spire.spiffe.io
       version: v1alpha1
-    - kind: SpireConfig
-      name: spireconfigs.operator.openshift.io
+    - kind: SpiffeCSIDriverConfig
+      name: spiffecsidriverconfigs.operator.openshift.io
+      version: v1alpha1
+    - kind: SpireAgentConfig
+      name: spireagentconfigs.operator.openshift.io
+      version: v1alpha1
+    - kind: SpireOIDCDiscoveryProviderConfig
+      name: spireoidcdiscoveryproviderconfigs.operator.openshift.io
+      version: v1alpha1
+    - kind: SpireServerConfig
+      name: spireserverconfigs.operator.openshift.io
       version: v1alpha1
     - kind: ZeroTrustWorkloadIdentityManager
       name: zerotrustworkloadidentitymanagers.operator.openshift.io
@@ -85,7 +94,10 @@ spec:
         - apiGroups:
           - operator.openshift.io
           resources:
-          - spireconfigs
+          - spiffecsidriverconfigs
+          - spireagentconfigs
+          - spireoidcdiscoveryproviderconfigs
+          - spireserverconfigs
           - zerotrustworkloadidentitymanagers
           verbs:
           - create
@@ -98,14 +110,20 @@ spec:
         - apiGroups:
           - operator.openshift.io
           resources:
-          - spireconfigs/finalizers
+          - spiffecsidriverconfigs/finalizers
+          - spireagentconfigs/finalizers
+          - spireoidcdiscoveryproviderconfigs/finalizers
+          - spireserverconfigs/finalizers
           - zerotrustworkloadidentitymanagers/finalizers
           verbs:
           - update
         - apiGroups:
           - operator.openshift.io
           resources:
-          - spireconfigs/status
+          - spiffecsidriverconfigs/status
+          - spireagentconfigs/status
+          - spireoidcdiscoveryproviderconfigs/status
+          - spireserverconfigs/status
           - zerotrustworkloadidentitymanagers/status
           verbs:
           - get

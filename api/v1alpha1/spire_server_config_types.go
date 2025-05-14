@@ -10,64 +10,71 @@ import (
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:validation:XValidation:rule="self.metadata.name == 'cluster'",message="SpireConfig is a singleton, .metadata.name must be 'cluster'"
-// +operator-sdk:csv:customresourcedefinitions:displayName="SpireConfig"
+// +kubebuilder:validation:XValidation:rule="self.metadata.name == 'cluster'",message="SpireServerConfig is a singleton, .metadata.name must be 'cluster'"
+// +operator-sdk:csv:customresourcedefinitions:displayName="SpireServerConfig"
 
-// SpireConfig defines the detailed configuration of the SPIRE components
-// managed by the ZeroTrustWorkloadIdentityManager.
-//
-// This CRD captures the user-facing configuration for the following SPIRE operands:
-// - spire-server: trust domain, datastore, plugins, etc.
-// - spire-agent: socket path, node attestation, workload attestors
-// - spiffe-csi-driver: configuration for projected identity delivery
-// - oidc-discovery-provider: optional OIDC endpoint configuration
-//
-// This CRD should be created and updated by cluster administrators or automation tools
-// that require fine-grained control over the SPIRE deployment.
-type SpireConfig struct {
+// SpireServerConfig defines the configuration for the SPIRE Server managed by zero trust workload identity manager.
+// This includes details related to trust domain, data storage, plugins
+// and other configs required for workload authentication.
+type SpireServerConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	Spec              SpireConfigSpec   `json:"spec,omitempty"`
-	Status            SpireConfigStatus `json:"status,omitempty"`
+	Spec              SpireServerConfigSpec   `json:"spec,omitempty"`
+	Status            SpireServerConfigStatus `json:"status,omitempty"`
 }
 
-// SpireConfigStatus defines the observed state of spire-operand reconcilation
-type SpireConfigStatus struct {
-	// conditions holds information of the current state of the external-secrets deployment.
-	ConditionalStatus `json:",inline,omitempty"`
-}
-
-// SpireConfigSpec is for configuring the spire-operands behavior.
-type SpireConfigSpec struct {
+// SpireServerConfigSpec will have specifications for configuration related to the spire server.
+type SpireServerConfigSpec struct {
 
 	// trustDomain to be used for the SPIFFE identifiers
 	// +kubebuilder:validation:Required
 	TrustDomain string `json:"trustDomain,omitempty"`
 
-	// clusterName will have the cluster name required to configure spire operands.
+	// clusterName will have the cluster name required to configure spire server.
 	// +kubebuilder:validation:Required
 	ClusterName string `json:"clusterName,omitempty"`
 
-	// bundleConfigMap is Configmap name for Spire bundle
+	// bundleConfigMap is Configmap name for Spire bundle, it sets the trust domain to be used for the SPIFFE identifiers
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=spire-bundle
 	BundleConfigMap string `json:"bundleConfigMap"`
 
-	// spireServerConfig has config for spire server.
+	// JwtIssuer is the JWT issuer domain. Defaults to oidc-discovery.$trustDomain if unset
 	// +kubebuilder:validation:Optional
-	SpireServerConfig *SpireServerConfig `json:"spireServerConfig,omitempty"`
+	JwtIssuer string `json:"jwtIssuer,omitempty"`
 
-	// spireAgentConfig has config for spire agents.
+	// spireServerKeyManager has configs for the spire server key manager.
 	// +kubebuilder:validation:Optional
-	SpireAgentConfig *SpireAgentConfig `json:"spireAgentConfig,omitempty"`
+	SpireServerKeyManager *SpireServerKeyManager `json:"spireServerKeyManager,omitempty"`
 
-	// spiffeOIDCProviderConfig has config for OIDC discovery provider
+	// CASubject contains subject information for the Spire CA.
 	// +kubebuilder:validation:Optional
-	SpiffeOIDCProviderConfig *SpiffeOIDCProviderConfig `json:"spiffeOIDCProviderConfigMap,omitempty"`
+	CASubject *CASubject `json:"caSubject,omitempty"`
 
-	// spiffeCSIDriverConfig has config for spiffe csi driver.
+	// resources are for defining the resource requirements.
+	// Cannot be updated.
+	// ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 	// +kubebuilder:validation:Optional
-	SpiffeCSIDriverConfig *SpiffeCSIDriverConfig `json:"spiffeCSIDriverConfig,omitempty"`
+	SpireServerResources *corev1.ResourceRequirements `json:"spireServerResources,omitempty"`
+
+	// persistence has config for spire server volume related configs
+	// +kubebuilder:validation:Optional
+	Persistence *Persistence `json:"persistence,omitempty"`
+
+	// spireSQLConfig has the config required for the spire server SQL DataStore.
+	// +kubebuilder:validation:Optional
+	SpireSQLConfig *SpireSQLConfig `json:"spireSQLConfig,omitempty"`
+
+	// labels to apply to all resources created for operator deployment.
+	// +mapType=granular
+	// +kubebuilder:validation:Optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// resources are for defining the resource requirements.
+	// Cannot be updated.
+	// ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+	// +kubebuilder:validation:Optional
+	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
 
 	// affinity is for setting scheduling affinity rules.
 	// ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
@@ -85,30 +92,6 @@ type SpireConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	// +mapType=atomic
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-}
-
-// SpireServerConfig defines the configuration for the Spire Server.
-// +kubebuilder:validation:Optional
-type SpireServerConfig struct {
-
-	// spireServerKeyManager has configs for the spire server key manager.
-	// +kubebuilder:validation:Optional
-	SpireServerKeyManager *SpireServerKeyManager `json:"spireServerKeyManager,omitempty"`
-
-	// CASubject contains subject information for the Spire CA.
-	// +kubebuilder:validation:Optional
-	CASubject *CASubject `json:"caSubject,omitempty"`
-
-	// resources are for defining the resource requirements.
-	// Cannot be updated.
-	// ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-	// +kubebuilder:validation:Optional
-	SpireServerResources *corev1.ResourceRequirements `json:"spireServerResources,omitempty"`
-
-	// persistence has config for spire server volume related configs
-	Persistence *Persistence `json:"persistence,omitempty"`
-
-	SpireSQLConfig *SpireSQLConfig `json:"spireSQLConfig,omitempty"`
 }
 
 // Persistence defines volume-related settings.
@@ -283,108 +266,6 @@ type CASubject struct {
 	CommonName string `json:"commonName,omitempty"`
 }
 
-// SpireAgentConfig defines the configuration for the Spire Agent.
-// +kubebuilder:validation:Optional
-type SpireAgentConfig struct {
-	// Enabled specifies whether the Spire Agent is enabled.
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=true
-	Enabled bool `json:"enabled,omitempty"`
-
-	// NodeAttestor specifies the configuration for the Node Attestor.
-	// +kubebuilder:validation:Optional
-	NodeAttestor *NodeAttestor `json:"nodeAttestor,omitempty"`
-
-	// WorkloadAttestors specifies the configuration for the Workload Attestors.
-	// +kubebuilder:validation:Optional
-	WorkloadAttestors *WorkloadAttestors `json:"workloadAttestors,omitempty"`
-}
-
-// NodeAttestor defines the configuration for the Node Attestor.
-// +kubebuilder:validation:Optional
-type NodeAttestor struct {
-	// k8sPSATEnabled tells if k8sPSAT configuration is enabled
-	// +kubebuilder:default:=true
-	K8sPSATEnabled bool `json:"k8sPSATEnabled,omitempty"`
-}
-
-// WorkloadAttestors defines the configuration for the Workload Attestors.
-// +kubebuilder:validation:Optional
-type WorkloadAttestors struct {
-
-	// k8sEnabled explains if the configuration is enabled for k8s.
-	// +kubebuilder:default=true
-	K8sEnabled bool `json:"k8sEnabled,omitempty"`
-
-	// workloadAttestorsVerification tells what kind of verification to do against kubelet.
-	// auto will first attempt to use hostCert, and then fall back to apiServerCA.
-	// Valid options are [auto, hostCert, apiServerCA, skip]
-	// +kubebuilder:validation:Optional
-	WorkloadAttestorsVerification *WorkloadAttestorsVerification `json:"workloadAttestorsVerification,omitempty"`
-
-	// DisableContainerSelectors specifies whether to disable container selectors in the Kubernetes workload attestor.
-	// Set to true if using holdApplicationUntilProxyStarts in Istio
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=false
-	DisableContainerSelectors bool `json:"disableContainerSelectors,omitempty"`
-
-	// UseNewContainerLocator enables the new container locator algorithm that has support for cgroups v2.
-	// Defaults to true
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=true
-	UseNewContainerLocator bool `json:"useNewContainerLocator,omitempty"`
-}
-
-type WorkloadAttestorsVerification struct {
-	// Type specifies the type of verification to be used.
-	// +kubebuilder: default="skip"
-	Type string `json:"type,omitempty"`
-
-	// hostCertBasePath specifies the base Path where kubelet places its certificates.
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default="/var/lib/kubelet/pki"
-	HostCertBasePath string `json:"hostCertBasePath,omitempty"`
-
-	// hostCertFileName specifies the file name for the host certificate.
-	// +kubebuilder:validation:Optional
-	HostCertFileName string `json:"hostCertFileName,omitempty"`
-}
-
-// SpiffeCSIDriverConfig defines the configuration for the Spiffe CSI Driver.
-// +kubebuilder:validation:Optional
-type SpiffeCSIDriverConfig struct {
-
-	// AgentSocket is the path to the agent socket.
-	// +kubebuilder:default="/run/spire/agent-sockets/spire-agent.sock"
-	AgentSocket string `json:"agentSocketPath,omitempty"`
-
-	// PluginName defines the name of the CSI plugin.
-	// +kubebuilder:default="csi.spiffe.io"
-	PluginName string `json:"pluginName,omitempty"`
-}
-
-// SpiffeOIDCProviderConfig defines the configuration for the Spiffe OIDC Provider.
-// +kubebuilder:validation:Optional
-type SpiffeOIDCProviderConfig struct {
-
-	// AgentSocket is the name of the agent socket.
-	// +kubebuilder:default="spire-agent.sock"
-	AgentSocketName string `json:"agentSocketName,omitempty"`
-
-	// jwtIssuerPath to JWT issuer. Defaults to oidc-discovery.$trustDomain if unset
-	// +kubebuilder:validation:Optional
-	JwtIssuer string `json:"jwtIssuer,omitempty"`
-
-	// spireOidcTlsConfig has the tls config specification for OIDC discovery provider
-	// +kubebuilder:validation:Optional
-	SpireOidcTlsConfig *TLSConfig `json:"spireOidcTlsConfig,omitempty"`
-
-	// ReplicaCount is the number of replicas for the OIDC provider.
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:default=1
-	ReplicaCount int `json:"replicaCount,omitempty"`
-}
-
 // TLSConfig defines TLS configuration for securing components.
 type TLSConfig struct {
 	// Enable SPIRE integration to secure the oidc-discovery-provider.
@@ -475,15 +356,22 @@ type CertManagerIssuerRef struct {
 	Name string `json:"name,omitempty"`
 }
 
-// +kubebuilder:object:root=true
+// SpireServerConfigStatus defines the observed state of spire-server related reconciliation made by operator
+type SpireServerConfigStatus struct {
+	// conditions holds information of the current state of the spire-server resources.
+	ConditionalStatus `json:",inline,omitempty"`
+}
 
-// SpireConfigLists contains a list of SpireConfig
-type SpireConfigLists struct {
+// +kubebuilder:object:root=true
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// SpireServerConfigLists contain the list of SpireServerConfig
+type SpireServerConfigLists struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []SpireConfig `json:"items"`
+	Items           []SpireServerConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SpireConfig{}, &SpireConfigLists{})
+	SchemeBuilder.Register(&SpireServerConfig{}, &SpireServerConfigLists{})
 }

@@ -28,10 +28,8 @@ const (
 )
 
 const (
-	ReasonFailed string = "Failed"
-
-	ReasonReady string = "Ready"
-
+	ReasonFailed     string = "Failed"
+	ReasonReady      string = "Ready"
 	ReasonInProgress string = "Progressing"
 )
 

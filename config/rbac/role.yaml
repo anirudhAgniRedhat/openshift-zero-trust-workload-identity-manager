@@ -8,8 +8,12 @@ rules:
   - ""
   resources:
   - configmaps
+  - endpoints
   - events
   - namespaces
+  - nodes
+  - nodes/proxy
+  - pods
   - serviceaccounts
   - services
   verbs:
@@ -24,6 +28,18 @@ rules:
   - admissionregistration.k8s.io
   resources:
   - validatingwebhookconfigurations
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
   verbs:
   - create
   - delete
@@ -77,6 +93,26 @@ rules:
   - clusterroles
   - rolebindings
   - roles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - spire.spiffe.io
+  resources:
+  - clusterfederatedtrustdomains
+  - clusterfederatedtrustdomains/finalizers
+  - clusterfederatedtrustdomains/status
+  - clusterspiffeids
+  - clusterspiffeids/finalizers
+  - clusterspiffeids/status
+  - clusterstaticentries
+  - clusterstaticentries/finalizers
+  - clusterstaticentries/status
   verbs:
   - create
   - delete

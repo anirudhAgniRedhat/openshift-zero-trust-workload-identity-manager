@@ -38,6 +38,7 @@ import (
 
 	operatoropenshiftiov1alpha1 "github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
 	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller"
+	spireServerController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/spire-server"
 	staticResourceController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/static-resource-controller"
 	// +kubebuilder:scaffold:imports
 )
@@ -168,6 +169,17 @@ func main() {
 	if err = staticResourceControllerManager.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "failed to set up StaticResourceReconciler controller with manager",
 			"controller", utils.ZeroTrustWorkloadIdentityManagerStaticResourceControllerName, "manager")
+		os.Exit(1)
+	}
+
+	spireServerControllerManager, err := spireServerController.New(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to set up static resource controller manager")
+		os.Exit(1)
+	}
+	if err = spireServerControllerManager.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "failed to set SpireServer controller with manager",
+			"controller", utils.ZeroTrustWorkloadIdentityManagerSpireServerControllerName, "manager")
 		os.Exit(1)
 	}
 

@@ -16,7 +16,7 @@ const (
 	Degraded string = "Degraded"
 
 	// Ready is the condition type used to inform state of readiness of the
-	// operator to process istio-csr enabling requests.
+	// operator to process spire enabling requests.
 	//   Status:
 	//   - True
 	//   - False

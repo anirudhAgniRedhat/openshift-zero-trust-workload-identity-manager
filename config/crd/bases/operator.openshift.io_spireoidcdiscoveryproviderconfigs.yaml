@@ -1054,105 +1054,6 @@ spec:
                       More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
                     type: object
                 type: object
-              spireOidcTlsConfig:
-                description: spireOidcTlsConfig has the tls config specification for
-                  OIDC discovery provider
-                properties:
-                  certManager:
-                    description: Configure cert-manager integration for automated
-                      certificate management.
-                    properties:
-                      certificate:
-                        description: Certificate contains certificate-specific options.
-                        properties:
-                          dnsNames:
-                            default: []
-                            description: DNSNames to include in the certificate request.
-                            items:
-                              type: string
-                            type: array
-                          issuerRef:
-                            description: IssuerRef configures which cert-manager Issuer/ClusterIssuer
-                              to use.
-                            properties:
-                              group:
-                                default: ""
-                                description: Group is the API group of the issuer
-                                  (e.g., "cert-manager.io").
-                                type: string
-                              kind:
-                                default: Issuer
-                                description: Kind of the issuer resource (Issuer or
-                                  ClusterIssuer).
-                                type: string
-                              name:
-                                default: ""
-                                description: Name of the issuer to be used.
-                                type: string
-                            type: object
-                        required:
-                        - issuerRef
-                        type: object
-                      enabled:
-                        default: false
-                        description: Enable TLS provisioning via cert-manager.
-                        type: boolean
-                      issuer:
-                        description: Issuer contains cert-manager issuer configuration.
-                        properties:
-                          acme:
-                            description: ACME contains configuration for Let's Encrypt
-                              / ACME issuer.
-                            properties:
-                              email:
-                                default: ""
-                                description: Email address for Let's Encrypt registration
-                                  (mandatory for ACME).
-                                type: string
-                              server:
-                                default: https://acme-v02.api.letsencrypt.org/directory
-                                description: Server is the ACME server URL (production
-                                  or staging).
-                                type: string
-                            type: object
-                          create:
-                            default: true
-                            description: Create indicators whether to create the issuer
-                              resource.
-                            type: boolean
-                        required:
-                        - acme
-                        - create
-                        type: object
-                    required:
-                    - certificate
-                    - enabled
-                    - issuer
-                    type: object
-                  externalSecret:
-                    description: Configure external secret support for custom TLS
-                      certificate/key.
-                    properties:
-                      enabled:
-                        default: false
-                        description: Enable usage of external Kubernetes TLS Secret.
-                        type: boolean
-                      secretName:
-                        default: ""
-                        description: SecretName is the name of the TLS Secret to use.
-                        type: string
-                    required:
-                    - enabled
-                    type: object
-                  spireEnabled:
-                    default: true
-                    description: Enable SPIRE integration to secure the oidc-discovery-provider.
-                    type: boolean
-                required:
-                - certManager
-                - externalSecret
-                - spireEnabled
-                type: object
               tolerations:
                 description: |-
                   tolerations are for setting the pod tolerations.
@@ -1208,7 +1109,7 @@ spec:
             properties:
               conditions:
                 description: conditions holds information of the current state of
-                  the istio-csr agent deployment.
+                  the spire-resources deployment.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.

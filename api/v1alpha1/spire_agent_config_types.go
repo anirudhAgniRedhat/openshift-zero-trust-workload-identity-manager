@@ -135,13 +135,13 @@ type SpireAgentConfigStatus struct {
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SpireAgentConfigLists contain the list of SpireAgentConfig
-type SpireAgentConfigLists struct {
+// SpireAgentConfigList contain the list of SpireAgentConfig
+type SpireAgentConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []SpireAgentConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SpireAgentConfig{}, &SpireServerConfigLists{})
+	SchemeBuilder.Register(&SpireAgentConfig{}, &SpireAgentConfigList{})
 }

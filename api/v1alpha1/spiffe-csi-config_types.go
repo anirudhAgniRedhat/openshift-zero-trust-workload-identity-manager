@@ -71,13 +71,13 @@ type SpiffeCSIDriverConfigStatus struct {
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SpiffeCSIDriverConfigLists contain the list of SpiffeCSIDriverConfig
-type SpiffeCSIDriverConfigLists struct {
+// SpiffeCSIDriverConfigList contain the list of SpiffeCSIDriverConfig
+type SpiffeCSIDriverConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []SpiffeCSIDriverConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SpiffeCSIDriverConfig{}, &SpiffeCSIDriverConfigLists{})
+	SchemeBuilder.Register(&SpiffeCSIDriverConfig{}, &SpiffeCSIDriverConfigList{})
 }

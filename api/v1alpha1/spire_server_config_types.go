@@ -51,19 +51,13 @@ type SpireServerConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	CASubject *CASubject `json:"caSubject,omitempty"`
 
-	// resources are for defining the resource requirements.
-	// Cannot be updated.
-	// ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-	// +kubebuilder:validation:Optional
-	SpireServerResources *corev1.ResourceRequirements `json:"spireServerResources,omitempty"`
-
 	// persistence has config for spire server volume related configs
 	// +kubebuilder:validation:Optional
 	Persistence *Persistence `json:"persistence,omitempty"`
 
 	// spireSQLConfig has the config required for the spire server SQL DataStore.
 	// +kubebuilder:validation:Optional
-	SpireSQLConfig *SpireSQLConfig `json:"spireSQLConfig,omitempty"`
+	Datastore *DataStore `json:"spireSQLConfig,omitempty"`
 
 	// labels to apply to all resources created for operator deployment.
 	// +mapType=granular
@@ -122,80 +116,16 @@ type Persistence struct {
 	HostPath string `json:"hostPath,omitempty"`
 }
 
-// SQLExternalSecret configures usage of external secrets for SQL credentials.
-type SQLExternalSecret struct {
-	// Whether to enable the external secret.
-	// +kubebuilder:default=false
-	Enabled bool `json:"enabled,omitempty"`
-
-	// Secret name in the same namespace.
-	// +kubebuilder:default=""
-	Name string `json:"name,omitempty"`
-
-	// Secret key whose value is the password.
-	// +kubebuilder:default=""
-	Key string `json:"key,omitempty"`
-}
-
-// SQLReadOnlyConfig allows configuring a read-only replica DB.
-type SQLReadOnlyConfig struct {
-	// Enable read-only SQL connection.
-	// +kubebuilder:default=false
-	Enabled bool `json:"enabled,omitempty"`
-
-	// Host of the read-only DB.
-	// +kubebuilder:default=""
-	Host string `json:"host,omitempty"`
-
-	// Port for the DB. If 0, defaults apply (5432/3306).
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:default=0
-	Port int `json:"port,omitempty"`
-
-	// Username to connect to DB.
-	// +kubebuilder:default=spire
-	Username string `json:"username,omitempty"`
-
-	// Password for the username.
-	// +kubebuilder:default=""
-	Password string `json:"password,omitempty"`
-
-	// DB options as key=value strings.
-	// +kubebuilder:validation:optional
-	// +kubebuilder:default={}
-	Options []string `json:"options,omitempty"`
-
-	// Optional external secret for read-only DB.
-	ExternalSecret SQLExternalSecret `json:"externalSecret"`
-}
-
-// SpireSQLConfig configures the Spire SQL datastore backend.
-type SpireSQLConfig struct {
+// DataStore configures the Spire SQL datastore backend.
+type DataStore struct {
 	// Type of database to use.
-	// +kubebuilder:validation:Enum=sqlite3;postgres;mysql;aws_postgresql;aws_mysql
+	// +kubebuilder:validation:Enum=sql;sqlite3;postgres;mysql;aws_postgresql;aws_mysql
 	// +kubebuilder:default=sqlite3
 	DatabaseType string `json:"databaseType"`
 
-	// Only used if databaseType != sqlite3.
-	// +kubebuilder:default=spire
-	DatabaseName string `json:"databaseName,omitempty"`
-
-	// Host of the database.
-	// +kubebuilder:default=""
-	Host string `json:"host,omitempty"`
-
-	// Port for DB connection (defaults depend on type).
-	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:default=0
-	Port int `json:"port,omitempty"`
-
-	// Username for database connection.
-	// +kubebuilder:default=spire
-	Username string `json:"username,omitempty"`
-
-	// Password for DB connection.
-	// +kubebuilder:default=""
-	Password string `json:"password,omitempty"`
+	// ConnectionString contain connection credentials required for spire server Datastore.
+	// +kubebuilder:default=/run/spire/data/datastore.sqlite3
+	ConnectionString string `json:"connectionString"`
 
 	// Extra DB options.
 	// +kubebuilder:validation:optional
@@ -208,9 +138,6 @@ type SpireSQLConfig struct {
 	ClientCertPath string `json:"clientCertPath,omitempty"`
 	ClientKeyPath  string `json:"clientKeyPath,omitempty"`
 
-	// External secret for main DB credentials.
-	ExternalSecret *SQLExternalSecret `json:"externalSecret"`
-
 	// DB pool config
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=100
@@ -222,19 +149,11 @@ type SpireSQLConfig struct {
 
 	// Max time (in seconds) a connection may live.
 	// +kubebuilder:validation:Minimum=0
-	// +kubebuilder:default=0
 	ConnMaxLifetime int `json:"connMaxLifetime"`
 
 	// If true, disables DB auto-migration.
 	// +kubebuilder:default=false
 	DisableMigration bool `json:"disableMigration"`
-
-	// AWS region, if using aws_* types.
-	// +kubebuilder:default=""
-	Region string `json:"region,omitempty"`
-
-	// Optional read-only DB config.
-	ReadOnly *SQLReadOnlyConfig `json:"readOnly"`
 }
 
 // SpireServerKeyManager will contain configs for the spire server key manager
@@ -266,96 +185,6 @@ type CASubject struct {
 	CommonName string `json:"commonName,omitempty"`
 }
 
-// TLSConfig defines TLS configuration for securing components.
-type TLSConfig struct {
-	// Enable SPIRE integration to secure the oidc-discovery-provider.
-	// +kubebuilder:default=true
-	SpireEnabled bool `json:"spireEnabled"`
-
-	// Configure external secret support for custom TLS certificate/key.
-	ExternalSecret *ExternalSecretTLSConfig `json:"externalSecret"`
-
-	// Configure cert-manager integration for automated certificate management.
-	CertManager *CertManagerTLSConfig `json:"certManager"`
-}
-
-// ExternalSecretTLSConfig configures TLS via an externally provided Kubernetes Secret.
-type ExternalSecretTLSConfig struct {
-	// Enable usage of external Kubernetes TLS Secret.
-	// +kubebuilder:default=false
-	Enabled bool `json:"enabled"`
-
-	// SecretName is the name of the TLS Secret to use.
-	// +kubebuilder:default=""
-	// +kubebuilder:validation:Optional
-	SecretName string `json:"secretName,omitempty"`
-}
-
-// CertManagerTLSConfig configures TLS via cert-manager.
-type CertManagerTLSConfig struct {
-	// Enable TLS provisioning via cert-manager.
-	// +kubebuilder:default=false
-	Enabled bool `json:"enabled"`
-
-	// Issuer contains cert-manager issuer configuration.
-	Issuer *CertManagerIssuerConfig `json:"issuer"`
-
-	// Certificate contains certificate-specific options.
-	Certificate *CertManagerCertificateConfig `json:"certificate"`
-}
-
-// CertManagerIssuerConfig contains issuer-related configuration.
-type CertManagerIssuerConfig struct {
-	// Create indicators whether to create the issuer resource.
-	// +kubebuilder:default=true
-	Create bool `json:"create"`
-
-	// ACME contains configuration for Let's Encrypt / ACME issuer.
-	ACME *CertManagerACMEConfig `json:"acme"`
-}
-
-// CertManagerACMEConfig contains ACME-specific issuer settings.
-type CertManagerACMEConfig struct {
-	// Email address for Let's Encrypt registration (mandatory for ACME).
-	// +kubebuilder:default=""
-	// +kubebuilder:validation:Optional
-	Email string `json:"email,omitempty"`
-
-	// Server is the ACME server URL (production or staging).
-	// +kubebuilder:default="https://acme-v02.api.letsencrypt.org/directory"
-	// +kubebuilder:validation:Optional
-	Server string `json:"server,omitempty"`
-}
-
-// CertManagerCertificateConfig configures certificate request details.
-type CertManagerCertificateConfig struct {
-	// DNSNames to include in the certificate request.
-	// +kubebuilder:default={ }
-	// +kubebuilder:validation:Optional
-	DNSNames []string `json:"dnsNames,omitempty"`
-
-	// IssuerRef configures which cert-manager Issuer/ClusterIssuer to use.
-	IssuerRef *CertManagerIssuerRef `json:"issuerRef"`
-}
-
-// CertManagerIssuerRef is a reference to the cert-manager Issuer or ClusterIssuer.
-type CertManagerIssuerRef struct {
-	// Group is the API group of the issuer (e.g., "cert-manager.io").
-	// +kubebuilder:default=""
-	// +kubebuilder:validation:Optional
-	Group string `json:"group,omitempty"`
-
-	// Kind of the issuer resource (Issuer or ClusterIssuer).
-	// +kubebuilder:default="Issuer"
-	// +kubebuilder:validation:Optional
-	Kind string `json:"kind,omitempty"`
-
-	// Name of the issuer to be used.
-	// +kubebuilder:default=""
-	// +kubebuilder:validation:Optional
-	Name string `json:"name,omitempty"`
-}
-
 // SpireServerConfigStatus defines the observed state of spire-server related reconciliation made by operator
 type SpireServerConfigStatus struct {
 	// conditions holds information of the current state of the spire-server resources.
@@ -365,13 +194,13 @@ type SpireServerConfigStatus struct {
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SpireServerConfigLists contain the list of SpireServerConfig
-type SpireServerConfigLists struct {
+// SpireServerConfigList contain the list of SpireServerConfig
+type SpireServerConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []SpireServerConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SpireServerConfig{}, &SpireServerConfigLists{})
+	SchemeBuilder.Register(&SpireServerConfig{}, &SpireServerConfigList{})
 }

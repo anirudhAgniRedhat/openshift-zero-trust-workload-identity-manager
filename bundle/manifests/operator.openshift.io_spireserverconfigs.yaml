@@ -1116,18 +1116,19 @@ spec:
                   clientKeyPath:
                     type: string
                   connMaxLifetime:
-                    default: 0
                     description: Max time (in seconds) a connection may live.
                     minimum: 0
                     type: integer
-                  databaseName:
-                    default: spire
-                    description: Only used if databaseType != sqlite3.
+                  connectionString:
+                    default: /run/spire/data/datastore.sqlite3
+                    description: ConnectionString contain connection credentials required
+                      for spire server Datastore.
                     type: string
                   databaseType:
                     default: sqlite3
                     description: Type of database to use.
                     enum:
+                    - sql
                     - sqlite3
                     - postgres
                     - mysql
@@ -1138,26 +1139,6 @@ spec:
                     default: false
                     description: If true, disables DB auto-migration.
                     type: boolean
-                  externalSecret:
-                    description: External secret for main DB credentials.
-                    properties:
-                      enabled:
-                        default: false
-                        description: Whether to enable the external secret.
-                        type: boolean
-                      key:
-                        default: ""
-                        description: Secret key whose value is the password.
-                        type: string
-                      name:
-                        default: ""
-                        description: Secret name in the same namespace.
-                        type: string
-                    type: object
-                  host:
-                    default: ""
-                    description: Host of the database.
-                    type: string
                   maxIdleConns:
                     default: 2
                     minimum: 0
@@ -1173,84 +1154,17 @@ spec:
                     items:
                       type: string
                     type: array
-                  password:
-                    default: ""
-                    description: Password for DB connection.
-                    type: string
-                  port:
-                    default: 0
-                    description: Port for DB connection (defaults depend on type).
-                    minimum: 0
-                    type: integer
-                  readOnly:
-                    description: Optional read-only DB config.
-                    properties:
-                      enabled:
-                        default: false
-                        description: Enable read-only SQL connection.
-                        type: boolean
-                      externalSecret:
-                        description: Optional external secret for read-only DB.
-                        properties:
-                          enabled:
-                            default: false
-                            description: Whether to enable the external secret.
-                            type: boolean
-                          key:
-                            default: ""
-                            description: Secret key whose value is the password.
-                            type: string
-                          name:
-                            default: ""
-                            description: Secret name in the same namespace.
-                            type: string
-                        type: object
-                      host:
-                        default: ""
-                        description: Host of the read-only DB.
-                        type: string
-                      options:
-                        default: []
-                        description: DB options as key=value strings.
-                        items:
-                          type: string
-                        type: array
-                      password:
-                        default: ""
-                        description: Password for the username.
-                        type: string
-                      port:
-                        default: 0
-                        description: Port for the DB. If 0, defaults apply (5432/3306).
-                        minimum: 0
-                        type: integer
-                      username:
-                        default: spire
-                        description: Username to connect to DB.
-                        type: string
-                    required:
-                    - externalSecret
-                    type: object
-                  region:
-                    default: ""
-                    description: AWS region, if using aws_* types.
-                    type: string
                   rootCAPath:
                     default: ""
                     description: MySQL TLS options.
                     type: string
-                  username:
-                    default: spire
-                    description: Username for database connection.
-                    type: string
                 required:
                 - connMaxLifetime
+                - connectionString
                 - databaseType
                 - disableMigration
-                - externalSecret
                 - maxIdleConns
                 - maxOpenConns
-                - readOnly
                 type: object
               spireServerKeyManager:
                 description: spireServerKeyManager has configs for the spire server
@@ -1264,68 +1178,6 @@ spec:
                     default: false
                     description: memoryEnabled is a flag to enable keyManager on memory
                     type: boolean
-                type: object
-              spireServerResources:
-                description: |-
-                  resources are for defining the resource requirements.
-                  Cannot be updated.
-                  ref: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                properties:
-                  claims:
-                    description: |-
-                      Claims lists the names of resources, defined in spec.resourceClaims,
-                      that are used by this container.
-
-                      This is an alpha field and requires enabling the
-                      DynamicResourceAllocation feature gate.
-
-                      This field is immutable. It can only be set for containers.
-                    items:
-                      description: ResourceClaim references one entry in PodSpec.ResourceClaims.
-                      properties:
-                        name:
-                          description: |-
-                            Name must match the name of one entry in pod.spec.resourceClaims of
-                            the Pod where this field is used. It makes that resource available
-                            inside a container.
-                          type: string
-                        request:
-                          description: |-
-                            Request is the name chosen for a request in the referenced claim.
-                            If empty, everything from the claim is made available, otherwise
-                            only the result of this request.
-                          type: string
-                      required:
-                      - name
-                      type: object
-                    type: array
-                    x-kubernetes-list-map-keys:
-                    - name
-                    x-kubernetes-list-type: map
-                  limits:
-                    additionalProperties:
-                      anyOf:
-                      - type: integer
-                      - type: string
-                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      x-kubernetes-int-or-string: true
-                    description: |-
-                      Limits describes the maximum amount of compute resources allowed.
-                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                    type: object
-                  requests:
-                    additionalProperties:
-                      anyOf:
-                      - type: integer
-                      - type: string
-                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                      x-kubernetes-int-or-string: true
-                    description: |-
-                      Requests describes the minimum amount of compute resources required.
-                      If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
-                      otherwise to an implementation-defined value. Requests cannot exceed Limits.
-                      More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
-                    type: object
                 type: object
               tolerations:
                 description: |-
@@ -1382,7 +1234,7 @@ spec:
             properties:
               conditions:
                 description: conditions holds information of the current state of
-                  the istio-csr agent deployment.
+                  the spire-resources deployment.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.

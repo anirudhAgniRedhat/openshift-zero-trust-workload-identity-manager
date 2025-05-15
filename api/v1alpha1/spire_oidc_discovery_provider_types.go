@@ -38,10 +38,6 @@ type SpireOIDCDiscoveryProviderConfigSpec struct {
 	// +kubebuilder:validation:Optional
 	JwtIssuer string `json:"jwtIssuer,omitempty"`
 
-	// spireOidcTlsConfig has the tls config specification for OIDC discovery provider
-	// +kubebuilder:validation:Optional
-	SpireOidcTlsConfig *TLSConfig `json:"spireOidcTlsConfig,omitempty"`
-
 	// ReplicaCount is the number of replicas for the OIDC provider.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default=1
@@ -85,13 +81,13 @@ type SpireOIDCDiscoveryProviderConfigStatus struct {
 // +kubebuilder:object:root=true
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SpireOIDCDiscoveryProviderConfigLists contain the list of SpireOIDCDiscoveryProviderConfig
-type SpireOIDCDiscoveryProviderConfigLists struct {
+// SpireOIDCDiscoveryProviderConfigList contain the list of SpireOIDCDiscoveryProviderConfig
+type SpireOIDCDiscoveryProviderConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []SpireOIDCDiscoveryProviderConfig `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&SpireOIDCDiscoveryProviderConfig{}, &SpireOIDCDiscoveryProviderConfigLists{})
+	SchemeBuilder.Register(&SpireOIDCDiscoveryProviderConfig{}, &SpireOIDCDiscoveryProviderConfigList{})
 }

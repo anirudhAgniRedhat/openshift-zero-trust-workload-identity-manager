@@ -9,7 +9,7 @@ import (
 )
 
 func (r *StaticResourceReconciler) CreateOrApplyServiceAccountResources(ctx context.Context) error {
-	for _, serviceAccount := range r.listStaticServiceResource() {
+	for _, serviceAccount := range r.listStaticServiceAccount() {
 		err := r.CreateOrUpdateObject(ctx, serviceAccount)
 		if err != nil {
 			r.log.Error(err, "unable to create or update Service resource")

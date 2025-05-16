@@ -2,17 +2,9 @@ package utils
 
 const (
 	ZeroTrustWorkloadIdentityManagerStaticResourceControllerName = "zero-trust-workload-identity-manager-static-resource-controller-controller"
-	SpireServerConfigmapControllerName                           = "spire-server-configmap-controller"
-	SpireServerDeploymentControllerName                          = "spire-server-deployment-controller"
 
-	SpireSeverAppNameLabelKey   = "app.kubernetes.io/name"
-	SpireSeverAppNameLabelValue = "server"
-
-	SpireSeverAppInstanceLabelKey   = "app.kubernetes.io/instance"
-	SpireSeverAppInstanceLabelValue = "spire"
-
-	SpireSeverAppManagedByLabelKey   = "app.kubernetes.io/managed-by"
-	SpireSeverAppManagedByLabelValue = "zero-trust-workload-identity-manager"
+	AppManagedByLabelKey   = "app.kubernetes.io/managed-by"
+	AppManagedByLabelValue = "zero-trust-workload-identity-manager"
 
 	// CSI ASSET PATH
 	SpiffeCsiDriverAssetName = "spiffe-csi/spiffe-csi-csi-driver.yaml"

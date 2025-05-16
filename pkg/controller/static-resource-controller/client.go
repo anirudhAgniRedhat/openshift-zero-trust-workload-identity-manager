@@ -31,7 +31,7 @@ type staticResourceCtrlClientImpl struct {
 }
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
-//counterfeiter:generate -o fakes . CtrlClient
+//counterfeiter:generate -o fakes . StaticResourceCtrlClient
 type StaticResourceCtrlClient interface {
 	Get(context.Context, client.ObjectKey, client.Object) error
 	List(context.Context, client.ObjectList, ...client.ListOption) error
@@ -138,7 +138,7 @@ func (c *staticResourceCtrlClientImpl) CreateOrUpdateObject(ctx context.Context,
 }
 
 func BuildCustomStaticResourceClient(mgr ctrl.Manager) (client.Client, error) {
-	spireServerManagedResourceAppManagedReq, err := labels.NewRequirement(utils.SpireSeverAppManagedByLabelKey, selection.Equals, []string{utils.SpireSeverAppManagedByLabelValue})
+	spireServerManagedResourceAppManagedReq, err := labels.NewRequirement(utils.AppManagedByLabelKey, selection.Equals, []string{utils.AppManagedByLabelValue})
 	if err != nil {
 		return nil, err
 	}

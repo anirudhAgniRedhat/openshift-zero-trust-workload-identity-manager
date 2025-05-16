@@ -19,6 +19,7 @@ func init() {
 	_ = corev1.AddToScheme(scheme)
 	_ = rbacv1.AddToScheme(scheme)
 	_ = storagev1.AddToScheme(scheme)
+	_ = admissionregistrationv1.AddToScheme(scheme)
 
 	// Create a codec factory for this scheme
 	codecs = serializer.NewCodecFactory(scheme)

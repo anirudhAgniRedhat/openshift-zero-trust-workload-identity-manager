@@ -39,4 +39,7 @@ const (
 	SpireOIDCDiscoveryProviderServiceAssetName   = "spire-oidc-discovery-provider/spire-oidc-discovery-provider-service.yaml"
 	SpireServerServiceAssetName                  = "spire-server/spire-server-service.yaml"
 	SpireControllerMangerWebhookServiceAssetName = "spire-controller-manager/spire-controller-manager-webhook-service.yaml"
+
+	// Validating Webhook Configurations
+	SpireControllerManagerValidatingWebhookConfigurationAssetName = "spire-controller-manager/spire-controller-manager-webhook-validating-webhook.yaml"
 )

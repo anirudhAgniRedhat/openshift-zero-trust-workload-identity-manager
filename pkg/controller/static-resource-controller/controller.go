@@ -146,6 +146,12 @@ func (r *StaticResourceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			err.Error())
 		return ctrl.Result{}, err
 	}
+	err = r.ApplyOrCreateValidatingWebhookConfiguration(ctx)
+	if err != nil {
+		r.log.Error(err, "failed to create or apply validating webhook configuration resources")
+		r.eventRecorder.Event(nil, corev1.EventTypeWarning, "Failed to create validating webhook configuration resource", err.Error())
+		return ctrl.Result{}, err
+	}
 	return ctrl.Result{}, nil
 }
 

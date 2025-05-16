@@ -138,19 +138,11 @@ func (c *staticResourceCtrlClientImpl) CreateOrUpdateObject(ctx context.Context,
 }
 
 func BuildCustomStaticResourceClient(mgr ctrl.Manager) (client.Client, error) {
-	spireServerManagedResourceAppNameReq, err := labels.NewRequirement(utils.SpireSeverAppNameLabelKey, selection.Equals, []string{utils.SpireSeverAppNameLabelValue})
-	if err != nil {
-		return nil, err
-	}
-	spireServerManagedResourceAppInstanceReq, err := labels.NewRequirement(utils.SpireSeverAppInstanceLabelKey, selection.Equals, []string{utils.SpireSeverAppInstanceLabelValue})
-	if err != nil {
-		return nil, err
-	}
 	spireServerManagedResourceAppManagedReq, err := labels.NewRequirement(utils.SpireSeverAppManagedByLabelKey, selection.Equals, []string{utils.SpireSeverAppManagedByLabelValue})
 	if err != nil {
 		return nil, err
 	}
-	managedResourceLabelReqSelector := labels.NewSelector().Add(*spireServerManagedResourceAppNameReq, *spireServerManagedResourceAppInstanceReq, *spireServerManagedResourceAppManagedReq)
+	managedResourceLabelReqSelector := labels.NewSelector().Add(*spireServerManagedResourceAppManagedReq)
 
 	customCacheOpts := cache.Options{
 		HTTPClient: mgr.GetHTTPClient(),
@@ -192,6 +184,30 @@ func BuildCustomStaticResourceClient(mgr ctrl.Manager) (client.Client, error) {
 		return nil, err
 	}
 	if _, err = customCache.GetInformer(context.Background(), &corev1.ConfigMap{}); err != nil {
+		return nil, err
+	}
+	if _, err = customCache.GetInformer(context.Background(), &rbacv1.ClusterRole{}); err != nil {
+		return nil, err
+	}
+	if _, err = customCache.GetInformer(context.Background(), &rbacv1.ClusterRoleBinding{}); err != nil {
+		return nil, err
+	}
+	if _, err = customCache.GetInformer(context.Background(), &rbacv1.Role{}); err != nil {
+		return nil, err
+	}
+	if _, err = customCache.GetInformer(context.Background(), &rbacv1.RoleBinding{}); err != nil {
+		return nil, err
+	}
+	if _, err = customCache.GetInformer(context.Background(), &corev1.Service{}); err != nil {
+		return nil, err
+	}
+	if _, err = customCache.GetInformer(context.Background(), &corev1.ServiceAccount{}); err != nil {
+		return nil, err
+	}
+	if _, err = customCache.GetInformer(context.Background(), &storagev1.CSIDriver{}); err != nil {
+		return nil, err
+	}
+	if _, err = customCache.GetInformer(context.Background(), &admissionregistrationv1.ValidatingWebhookConfiguration{}); err != nil {
 		return nil, err
 	}
 

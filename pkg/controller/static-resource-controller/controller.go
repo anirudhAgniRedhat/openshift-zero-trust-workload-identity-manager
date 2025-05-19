@@ -106,14 +106,14 @@ var controllerManagedResources = predicate.Funcs{
 }
 
 func hasControllerManagedLabel(obj client.Object) bool {
-	val, ok := obj.GetLabels()["app.kubernetes.io/managed-by"]
-	return ok && val == "zero-trust-workload-identity-manager"
+	val, ok := obj.GetLabels()[utils.AppManagedByLabelKey]
+	return ok && val == utils.AppManagedByLabelValue
 }
 
 func (r *StaticResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	r.log.Info("Reconciling for staticResourceController", "request", req)
-	var config v1alpha1.ZeroTrustWorkloadIdentityManager
-	err := r.ctrlClient.Get(ctx, req.NamespacedName, &config)
+	var config *v1alpha1.ZeroTrustWorkloadIdentityManager
+	err := r.ctrlClient.Get(ctx, req.NamespacedName, config)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Ensure the 'cluster' instance always exists
@@ -137,35 +137,35 @@ func (r *StaticResourceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	err = r.CreateOrApplyRbacResources(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply rbac resources")
-		r.eventRecorder.Event(nil, corev1.EventTypeWarning, "failed to create RBAC resources",
+		r.eventRecorder.Event(config, corev1.EventTypeWarning, "failed to create RBAC resources",
 			err.Error())
 		return ctrl.Result{}, err
 	}
 	err = r.CreateOrApplyServiceAccountResources(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply service accounts resources")
-		r.eventRecorder.Event(nil, corev1.EventTypeWarning, "failed to create Service Account resources",
+		r.eventRecorder.Event(config, corev1.EventTypeWarning, "failed to create Service Account resources",
 			err.Error())
 		return ctrl.Result{}, err
 	}
 	err = r.CreateOrApplyServiceResources(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply services resources")
-		r.eventRecorder.Event(nil, corev1.EventTypeWarning, "failed to create Service resources",
+		r.eventRecorder.Event(config, corev1.EventTypeWarning, "failed to create Service resources",
 			err.Error())
 		return ctrl.Result{}, err
 	}
 	err = r.CreateSpiffeCsiDriver(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply spiffe csi driver resources")
-		r.eventRecorder.Event(nil, corev1.EventTypeWarning, "failed to create CSI driver resources",
+		r.eventRecorder.Event(config, corev1.EventTypeWarning, "failed to create CSI driver resources",
 			err.Error())
 		return ctrl.Result{}, err
 	}
 	err = r.ApplyOrCreateValidatingWebhookConfiguration(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply validating webhook configuration resources")
-		r.eventRecorder.Event(nil, corev1.EventTypeWarning, "Failed to create validating webhook configuration resource", err.Error())
+		r.eventRecorder.Event(config, corev1.EventTypeWarning, "Failed to create validating webhook configuration resource", err.Error())
 		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil

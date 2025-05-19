@@ -17,9 +17,9 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"flag"
-	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -38,6 +38,8 @@ import (
 
 	operatoropenshiftiov1alpha1 "github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
 	staticResourceController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/static-resource-controller"
+	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
+	"github.com/openshift/zero-trust-workload-identity-manager/pkg/operator/bootstrap"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -149,6 +151,12 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	go func() {
+		if err := bootstrap.BootstrapCR(context.Background(), mgr.GetClient(), setupLog); err != nil {
+			setupLog.Error(err, "Failed to bootstrap ZeroTrustWorkloadIdentityManager CR")
+		}
+	}()
 
 	staticResourceControllerManager, err := staticResourceController.New(mgr)
 	if err != nil {

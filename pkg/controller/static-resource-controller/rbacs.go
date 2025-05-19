@@ -58,13 +58,13 @@ func (r *StaticResourceReconciler) listStaticClusterRoleBindings() []*rbacv1.Clu
 
 func (r *StaticResourceReconciler) listStaticRoles() []*rbacv1.Role {
 	roles := []*rbacv1.Role{}
-	roles = append(roles, r.getSpireBundleRole())
+	roles = append(roles, r.getSpireBundleRole(), r.getSpireControllerManagerLeaderElectionRole())
 	return roles
 }
 
 func (r *StaticResourceReconciler) listStaticRoleBindings() []*rbacv1.RoleBinding {
 	roleBindings := []*rbacv1.RoleBinding{}
-	roleBindings = append(roleBindings, r.getSpireBundleRoleBinding())
+	roleBindings = append(roleBindings, r.getSpireBundleRoleBinding(), r.getSpireControllerManagerLeaderElectionRoleBinding())
 	return roleBindings
 }
 

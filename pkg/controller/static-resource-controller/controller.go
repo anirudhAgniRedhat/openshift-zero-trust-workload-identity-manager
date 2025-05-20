@@ -2,19 +2,21 @@ package static_resource_controller
 
 import (
 	"context"
-	"github.com/go-logr/logr"
-	"github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
-	customClient "github.com/openshift/zero-trust-workload-identity-manager/pkg/client"
-	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
+
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	storagev1 "k8s.io/api/storage/v1"
+
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+
 	"k8s.io/client-go/tools/record"
+
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -22,6 +24,20 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/go-logr/logr"
+
+	"github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
+	customClient "github.com/openshift/zero-trust-workload-identity-manager/pkg/client"
+	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
+)
+
+const (
+	RBACResourcesGeneration                           = "RBACResourcesGeneration"
+	ServiceResourcesGeneration                        = "ServiceResourcesGeneration"
+	ServiceAccountResourcesGeneration                 = "ServiceAccountResourcesGeneration"
+	SpiffeCSIResourcesGeneration                      = "SpiffeCSIResourcesGeneration"
+	ValidatingWebhookConfigurationResourcesGeneration = "ValidatingWebhookConfigurationResourcesGeneration"
 )
 
 type StaticResourceReconciler struct {
@@ -30,6 +46,12 @@ type StaticResourceReconciler struct {
 	eventRecorder record.EventRecorder
 	log           logr.Logger
 	scheme        *runtime.Scheme
+}
+
+type reconcilerStatus struct {
+	Status  metav1.ConditionStatus
+	Message string
+	Reason  string
 }
 
 // +kubebuilder:rbac:groups=operator.openshift.io,resources=zerotrustworkloadidentitymanagers,verbs=get;list;watch;create;update;patch;delete
@@ -76,6 +98,7 @@ type StaticResourceReconciler struct {
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;watch;create;update;patch;delete
 
 // New returns a new Reconciler instance.
 func New(mgr ctrl.Manager) (*StaticResourceReconciler, error) {
@@ -111,9 +134,8 @@ func hasControllerManagedLabel(obj client.Object) bool {
 }
 
 func (r *StaticResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.log.Info("Reconciling for staticResourceController", "request", req)
-	var config *v1alpha1.ZeroTrustWorkloadIdentityManager
-	err := r.ctrlClient.Get(ctx, req.NamespacedName, config)
+	var config v1alpha1.ZeroTrustWorkloadIdentityManager
+	err := r.ctrlClient.Get(ctx, req.NamespacedName, &config)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Ensure the 'cluster' instance always exists
@@ -134,39 +156,115 @@ func (r *StaticResourceReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		return ctrl.Result{}, err
 	}
+	reconcileStatus := map[string]reconcilerStatus{}
+	defer func(reconcileStatus map[string]reconcilerStatus) {
+		originalStatus := config.Status.DeepCopy()
+		if config.Status.ConditionalStatus.Conditions == nil {
+			config.Status.ConditionalStatus = v1alpha1.ConditionalStatus{
+				Conditions: []metav1.Condition{},
+			}
+		}
+		for key, value := range reconcileStatus {
+			newCondition := metav1.Condition{
+				Type:               key,
+				Status:             value.Status,
+				Reason:             value.Reason,
+				Message:            value.Message,
+				LastTransitionTime: metav1.Now(),
+			}
+			apimeta.SetStatusCondition(&config.Status.ConditionalStatus.Conditions, newCondition)
+		}
+		newConfig := config.DeepCopy()
+		if !equality.Semantic.DeepEqual(originalStatus, &config.Status) {
+			if err = r.ctrlClient.StatusUpdate(ctx, newConfig); err != nil {
+				r.log.Error(err, "failed to update status")
+			}
+		}
+	}(reconcileStatus)
 	err = r.CreateOrApplyRbacResources(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply rbac resources")
-		r.eventRecorder.Event(config, corev1.EventTypeWarning, "failed to create RBAC resources",
+		r.eventRecorder.Event(&config, corev1.EventTypeWarning, "failed to create RBAC resources",
 			err.Error())
+		reconcileStatus[RBACResourcesGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "RBACResourceCreationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
+	}
+	reconcileStatus[RBACResourcesGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "RBACResourceCreated",
+		Message: "All RBAC resources for operands created",
 	}
 	err = r.CreateOrApplyServiceAccountResources(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply service accounts resources")
-		r.eventRecorder.Event(config, corev1.EventTypeWarning, "failed to create Service Account resources",
+		r.eventRecorder.Event(&config, corev1.EventTypeWarning, "failed to create Service Account resources",
 			err.Error())
+		reconcileStatus[ServiceAccountResourcesGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "ServiceAccountResourceCreationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
+	}
+	reconcileStatus[ServiceAccountResourcesGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "ServiceAccountResourceCreated",
+		Message: "Service Account resources for operands are created",
 	}
 	err = r.CreateOrApplyServiceResources(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply services resources")
-		r.eventRecorder.Event(config, corev1.EventTypeWarning, "failed to create Service resources",
+		r.eventRecorder.Event(&config, corev1.EventTypeWarning, "failed to create Service resources",
 			err.Error())
+		reconcileStatus[ServiceResourcesGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "ServiceResourceCreationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
+	}
+	reconcileStatus[ServiceResourcesGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "ServiceResourceCreated",
+		Message: "All Service resource for operands are created",
 	}
 	err = r.CreateSpiffeCsiDriver(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply spiffe csi driver resources")
-		r.eventRecorder.Event(config, corev1.EventTypeWarning, "failed to create CSI driver resources",
+		r.eventRecorder.Event(&config, corev1.EventTypeWarning, "failed to create CSI driver resources",
 			err.Error())
+		reconcileStatus[SpiffeCSIResourcesGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpiffeCSIResourceCreationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
+	}
+	reconcileStatus[SpiffeCSIResourcesGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "SpiffeCSIResourceCreated",
+		Message: "CSI driver resource created",
 	}
 	err = r.ApplyOrCreateValidatingWebhookConfiguration(ctx)
 	if err != nil {
 		r.log.Error(err, "failed to create or apply validating webhook configuration resources")
-		r.eventRecorder.Event(config, corev1.EventTypeWarning, "Failed to create validating webhook configuration resource", err.Error())
+		r.eventRecorder.Event(&config, corev1.EventTypeWarning, "Failed to create validating webhook configuration resource",
+			err.Error())
+		reconcileStatus[ValidatingWebhookConfigurationResourcesGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "ValidatingWebhookConfigurationResourcesCreationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
+	}
+	reconcileStatus[ValidatingWebhookConfigurationResourcesGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "ValidatingWebhookConfigurationResourcesCreated",
+		Message: "All ValidatingWebhookConfiguration resources for operands are created",
 	}
 	return ctrl.Result{}, nil
 }

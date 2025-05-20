@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"flag"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -152,11 +153,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	go func() {
-		if err := bootstrap.BootstrapCR(context.Background(), mgr.GetClient(), setupLog); err != nil {
-			setupLog.Error(err, "Failed to bootstrap ZeroTrustWorkloadIdentityManager CR")
-		}
-	}()
+	uncachedClient, err := client.New(mgr.GetConfig(), client.Options{Scheme: scheme})
+	if err != nil {
+		return
+	}
+	if err = bootstrap.BootstrapCR(context.Background(), uncachedClient, setupLog); err != nil {
+		setupLog.Error(err, "Failed to bootstrap ZeroTrustWorkloadIdentityManager CR")
+		os.Exit(1)
+	}
 
 	staticResourceControllerManager, err := staticResourceController.New(mgr)
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,16 +17,28 @@ import (
 
 // GenerateSpireServerConfigMap generates the spire-server ConfigMap
 func GenerateSpireServerConfigMap(config *v1alpha1.SpireServerConfigSpec) (*corev1.ConfigMap, error) {
+	if config == nil {
+		return nil, fmt.Errorf("config is nil")
+	}
+	if config.TrustDomain == "" {
+		return nil, fmt.Errorf("trust_domain is empty")
+	}
+	if config.BundleConfigMap == "" {
+		return nil, fmt.Errorf("bundle configmap is empty")
+	}
+	if config.Datastore == nil {
+		return nil, fmt.Errorf("datastore configuration is required")
+	}
 	confMap := generateServerConfMap(config)
 	confJSON, err := marshalToJSON(confMap)
 	if err != nil {
 		return nil, err
 	}
 	labels := map[string]string{}
-	labels[utils.AppManagedByLabelKey] = utils.AppManagedByLabelValue
 	for key, value := range config.Labels {
 		labels[key] = value
 	}
+	labels[utils.AppManagedByLabelKey] = utils.AppManagedByLabelValue
 
 	cm := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -150,7 +163,13 @@ func generateConfigHash(data []byte) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func generateSpireControllerManagerConfigYaml(config *v1alpha1.SpireServerConfigSpec) string {
+func generateSpireControllerManagerConfigYaml(config *v1alpha1.SpireServerConfigSpec) (string, error) {
+	if config.TrustDomain == "" {
+		return "", errors.New("trust_domain is empty")
+	}
+	if config.ClusterName == "" {
+		return "", errors.New("cluster name is empty")
+	}
 	return fmt.Sprintf(`apiVersion: spire.spiffe.io/v1alpha1
 kind: ControllerManagerConfig
 metadata:
@@ -201,7 +220,7 @@ reconcile:
   clusterSPIFFEIDs: true
   clusterStaticEntries: true
   clusterFederatedTrustDomains: true
-`, config.ClusterName, config.ClusterName, config.TrustDomain)
+`, config.ClusterName, config.ClusterName, config.TrustDomain), nil
 }
 
 func generateControllerManagerConfigMap(configYAML string) *corev1.ConfigMap {
@@ -220,15 +239,18 @@ func generateControllerManagerConfigMap(configYAML string) *corev1.ConfigMap {
 	}
 }
 
-func generateSpireBundleConfigMap() *corev1.ConfigMap {
+func generateSpireBundleConfigMap(config *v1alpha1.SpireServerConfigSpec) (*corev1.ConfigMap, error) {
+	if config.BundleConfigMap == "" {
+		return nil, errors.New("bundle ConfigMap is empty")
+	}
 	return &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "spire-bundle",
+			Name:      config.BundleConfigMap,
 			Namespace: utils.OperatorNamespace,
 			Labels: map[string]string{
 				"app":                      "spire-server",
 				utils.AppManagedByLabelKey: utils.AppManagedByLabelValue,
 			},
 		},
-	}
+	}, nil
 }

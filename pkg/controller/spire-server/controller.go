@@ -95,7 +95,11 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	spireServerConfigMapHash := generateConfigHash(spireServerConfJSON)
 
-	spireControllerManagerConfig := generateSpireControllerManagerConfigYaml(&server.Spec)
+	spireControllerManagerConfig, err := generateSpireControllerManagerConfigYaml(&server.Spec)
+	if err != nil {
+		r.log.Error(err, "Failed to generate spire controller manager config")
+		return ctrl.Result{}, err
+	}
 	spireControllerManagerConfigMap := generateControllerManagerConfigMap(spireControllerManagerConfig)
 	// Set owner reference so GC cleans up when CR is deleted
 	if err := controllerutil.SetControllerReference(&server, spireControllerManagerConfigMap, r.scheme); err != nil {
@@ -125,7 +129,7 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	spireControllerManagerConfigMapHash := generateConfigHashFromString(spireControllerManagerConfig)
 
-	spireBundleCM := generateSpireBundleConfigMap()
+	spireBundleCM, err := generateSpireBundleConfigMap(&server.Spec)
 	if err := controllerutil.SetControllerReference(&server, spireControllerManagerConfigMap, r.scheme); err != nil {
 		return ctrl.Result{}, err
 	}

@@ -55,16 +55,6 @@ func GenerateAgentConfig(cfg *v1alpha1.SpireAgentConfig) map[string]interface{} 
 			"verbose_container_locator_logs": false,
 			"skip_kubelet_verification":      true,
 		}
-
-		if v := cfg.Spec.WorkloadAttestors.WorkloadAttestorsVerification; v != nil && v.Type != "" {
-			switch v.Type {
-			case "skip":
-				plugin["skip_kubelet_verification"] = true
-			case "hostCert", "apiServerCA", "auto":
-				plugin["skip_kubelet_verification"] = false
-			}
-		}
-
 		agentConf["plugins"].(map[string]interface{})["WorkloadAttestor"] = []map[string]interface{}{
 			{"k8s": map[string]interface{}{"plugin_data": plugin}},
 		}
@@ -75,11 +65,11 @@ func GenerateAgentConfig(cfg *v1alpha1.SpireAgentConfig) map[string]interface{} 
 
 func GenerateSpireAgentConfigMap(spireAgentConfig *v1alpha1.SpireAgentConfig) (*corev1.ConfigMap, string, error) {
 	agentConfig := GenerateAgentConfig(spireAgentConfig)
-	agentConfigJSON, err := json.Marshal(agentConfig)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to marshal agent config JSON: %w", err)
-	}
 
+	agentConfigJSON, err := json.MarshalIndent(agentConfig, "", "  ")
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to marshal agent config: %w", err)
+	}
 	spireAgentConfigHash := utils.GenerateConfigHash(agentConfigJSON)
 
 	labels := map[string]string{

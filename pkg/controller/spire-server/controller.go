@@ -3,26 +3,47 @@ package spire_server
 import (
 	"context"
 	"fmt"
-	"github.com/go-logr/logr"
-	customClient "github.com/openshift/zero-trust-workload-identity-manager/pkg/client"
-	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
+
+	"k8s.io/apimachinery/pkg/api/equality"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
+
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/go-logr/logr"
+
 	"github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	customClient "github.com/openshift/zero-trust-workload-identity-manager/pkg/client"
+	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
 )
+
+const (
+	SpireServerStatefulSetGeneration          = "SpireServerStatefulSetGeneration"
+	SpireServerConfigMapGeneration            = "SpireServerConfigMapGeneration"
+	SpireControllerManagerConfigMapGeneration = "SpireControllerManagerConfigMapGeneration"
+	SpireBundleConfigMapGeneration            = "SpireBundleConfigMapGeneration"
+)
+
+type reconcilerStatus struct {
+	Status  metav1.ConditionStatus
+	Message string
+	Reason  string
+}
 
 // SpireServerReconciler reconciles a SpireServer object
 type SpireServerReconciler struct {
@@ -61,35 +82,93 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		return ctrl.Result{}, err
 	}
+	reconcileStatus := map[string]reconcilerStatus{}
+	defer func(reconcileStatus map[string]reconcilerStatus) {
+		originalStatus := server.Status.DeepCopy()
+		if server.Status.ConditionalStatus.Conditions == nil {
+			server.Status.ConditionalStatus = v1alpha1.ConditionalStatus{
+				Conditions: []metav1.Condition{},
+			}
+		}
+		for key, value := range reconcileStatus {
+			newCondition := metav1.Condition{
+				Type:               key,
+				Status:             value.Status,
+				Reason:             value.Reason,
+				Message:            value.Message,
+				LastTransitionTime: metav1.Now(),
+			}
+			apimeta.SetStatusCondition(&server.Status.ConditionalStatus.Conditions, newCondition)
+		}
+		newConfig := server.DeepCopy()
+		if !equality.Semantic.DeepEqual(originalStatus, &server.Status) {
+			if err := r.ctrlClient.StatusUpdate(ctx, newConfig); err != nil {
+				r.log.Error(err, "failed to update status")
+			}
+		}
+	}(reconcileStatus)
 
 	spireServerConfigMap, err := GenerateSpireServerConfigMap(&server.Spec)
 	if err != nil {
+		r.log.Error(err, "failed to generate spire server config map")
+		reconcileStatus[SpireServerConfigMapGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpireServerConfigMapGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
 	}
 	// Set owner reference so GC cleans up when CR is deleted
-	if err := controllerutil.SetControllerReference(&server, spireServerConfigMap, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(&server, spireServerConfigMap, r.scheme); err != nil {
+		r.log.Error(err, "failed to set controller reference")
+		reconcileStatus[SpireServerConfigMapGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpireServerConfigMapGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
 	}
 
 	var existingSpireServerCM corev1.ConfigMap
 	err = r.ctrlClient.Get(ctx, types.NamespacedName{Name: spireServerConfigMap.Name, Namespace: spireServerConfigMap.Namespace}, &existingSpireServerCM)
 	if err != nil && kerrors.IsNotFound(err) {
-		if err := r.ctrlClient.Create(ctx, spireServerConfigMap); err != nil {
+		if err = r.ctrlClient.Create(ctx, spireServerConfigMap); err != nil {
+			reconcileStatus[SpireServerConfigMapGeneration] = reconcilerStatus{
+				Status:  metav1.ConditionFalse,
+				Reason:  "SpireServerConfigMapGenerationFailed",
+				Message: err.Error(),
+			}
 			return ctrl.Result{}, fmt.Errorf("failed to create ConfigMap: %w", err)
 		}
 		r.log.Info("Created spire sever ConfigMap")
 	} else if err == nil && existingSpireServerCM.Data["server.conf"] != spireServerConfigMap.Data["server.conf"] {
 		existingSpireServerCM.Data = spireServerConfigMap.Data
-		if err := r.ctrlClient.Update(ctx, &existingSpireServerCM); err != nil {
+		if err = r.ctrlClient.Update(ctx, &existingSpireServerCM); err != nil {
+			reconcileStatus[SpireServerConfigMapGeneration] = reconcilerStatus{
+				Status:  metav1.ConditionFalse,
+				Reason:  "SpireServerConfigMapGenerationFailed",
+				Message: err.Error(),
+			}
 			return ctrl.Result{}, fmt.Errorf("failed to update ConfigMap: %w", err)
 		}
 		r.log.Info("Updated ConfigMap with new config")
 	} else if err != nil {
+		reconcileStatus[SpireServerConfigMapGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpireServerConfigMapGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
+	}
+	reconcileStatus[SpireServerConfigMapGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "SpireConfigMapResourceCreated",
+		Message: "SpireServer config map resources applied",
 	}
 
 	spireServerConfJSON, err := marshalToJSON(generateServerConfMap(&server.Spec))
 	if err != nil {
+		r.log.Error(err, "failed to marshal spire server config map to JSON")
 		return ctrl.Result{}, err
 	}
 
@@ -98,48 +177,106 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	spireControllerManagerConfig, err := generateSpireControllerManagerConfigYaml(&server.Spec)
 	if err != nil {
 		r.log.Error(err, "Failed to generate spire controller manager config")
+		reconcileStatus[SpireControllerManagerConfigMapGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpireControllerManagerConfigMapGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
 	}
 	spireControllerManagerConfigMap := generateControllerManagerConfigMap(spireControllerManagerConfig)
 	// Set owner reference so GC cleans up when CR is deleted
-	if err := controllerutil.SetControllerReference(&server, spireControllerManagerConfigMap, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(&server, spireControllerManagerConfigMap, r.scheme); err != nil {
+		r.log.Error(err, "failed to set controller reference on spire controller manager config")
+		reconcileStatus[SpireControllerManagerConfigMapGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpireControllerManagerConfigMapGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
 	}
 
 	var existingSpireControllerManagerCM corev1.ConfigMap
-
-	if err := controllerutil.SetControllerReference(&server, spireControllerManagerConfigMap, r.scheme); err != nil {
-		return ctrl.Result{}, err
-	}
 	err = r.ctrlClient.Get(ctx, types.NamespacedName{Name: spireControllerManagerConfigMap.Name, Namespace: spireControllerManagerConfigMap.Namespace}, &existingSpireControllerManagerCM)
 	if err != nil && kerrors.IsNotFound(err) {
-		if err := r.ctrlClient.Create(ctx, spireControllerManagerConfigMap); err != nil {
+		if err = r.ctrlClient.Create(ctx, spireControllerManagerConfigMap); err != nil {
+			r.log.Error(err, "failed to create spire controller manager config map")
+			reconcileStatus[SpireControllerManagerConfigMapGeneration] = reconcilerStatus{
+				Status:  metav1.ConditionFalse,
+				Reason:  "SpireControllerManagerConfigMapGenerationFailed",
+				Message: err.Error(),
+			}
 			return ctrl.Result{}, fmt.Errorf("failed to create ConfigMap: %w", err)
 		}
 		r.log.Info("Created spire controller manager ConfigMap")
 	} else if err == nil && existingSpireControllerManagerCM.Data["controller-manager-config.yaml"] != existingSpireControllerManagerCM.Data["controller-manager-config.yaml"] {
 		existingSpireControllerManagerCM.Data = spireControllerManagerConfigMap.Data
-		if err := r.ctrlClient.Update(ctx, &existingSpireControllerManagerCM); err != nil {
+		if err = r.ctrlClient.Update(ctx, &existingSpireControllerManagerCM); err != nil {
+			reconcileStatus[SpireControllerManagerConfigMapGeneration] = reconcilerStatus{
+				Status:  metav1.ConditionFalse,
+				Reason:  "SpireControllerManagerConfigMapGenerationFailed",
+				Message: err.Error(),
+			}
 			return ctrl.Result{}, fmt.Errorf("failed to update ConfigMap: %w", err)
 		}
 		r.log.Info("Updated ConfigMap with new config")
 	} else if err != nil {
+		r.log.Error(err, "failed to update spire controller manager config map")
 		return ctrl.Result{}, err
+	}
+
+	reconcileStatus[SpireControllerManagerConfigMapGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "SpireControllerManagerConfigMapCreated",
+		Message: "spire controller manager config map resources applied",
 	}
 
 	spireControllerManagerConfigMapHash := generateConfigHashFromString(spireControllerManagerConfig)
 
 	spireBundleCM, err := generateSpireBundleConfigMap(&server.Spec)
-	if err := controllerutil.SetControllerReference(&server, spireControllerManagerConfigMap, r.scheme); err != nil {
+	if err != nil {
+		r.log.Error(err, "failed to generate spire bundle config map")
+		reconcileStatus[SpireBundleConfigMapGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpireBundleConfigMapGenerationFailed",
+			Message: err.Error(),
+		}
+		return ctrl.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(&server, spireBundleCM, r.scheme); err != nil {
+		r.log.Error(err, "failed to set controller reference on spire bundle config")
+		reconcileStatus[SpireBundleConfigMapGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpireBundleConfigMapGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
 	}
 	err = r.ctrlClient.Create(ctx, spireBundleCM)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
+		r.log.Error(err, "failed to create spire bundle config map")
+		reconcileStatus[SpireBundleConfigMapGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpireBundleConfigMapGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, fmt.Errorf("failed to create spire-bundle ConfigMap: %w", err)
+	}
+
+	reconcileStatus[SpireBundleConfigMapGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "SpireBundleConfigMapCreated",
+		Message: "spire bundle config map resources applied",
 	}
 
 	sts := GenerateSpireServerStatefulSet(&server.Spec, spireServerConfigMapHash, spireControllerManagerConfigMapHash)
 	if err := controllerutil.SetControllerReference(&server, sts, r.scheme); err != nil {
+		r.log.Error(err, "failed to set controller reference on spire server stateful set resource")
+		reconcileStatus[SpireServerStatefulSetGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpireServerStatefulSetGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
 	}
 
@@ -147,20 +284,35 @@ func (r *SpireServerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	var existingSTS appsv1.StatefulSet
 	err = r.ctrlClient.Get(ctx, types.NamespacedName{Name: sts.Name, Namespace: sts.Namespace}, &existingSTS)
 	if err != nil && kerrors.IsNotFound(err) {
-		if err := r.ctrlClient.Create(ctx, sts); err != nil {
+		if err = r.ctrlClient.Create(ctx, sts); err != nil {
+			reconcileStatus[SpireServerStatefulSetGeneration] = reconcilerStatus{
+				Status:  metav1.ConditionFalse,
+				Reason:  "SpireServerStatefulSetGenerationFailed",
+				Message: err.Error(),
+			}
 			return ctrl.Result{}, fmt.Errorf("failed to create StatefulSet: %w", err)
 		}
 		r.log.Info("Created spire sever StatefulSet")
 	} else if err == nil && needsUpdate(existingSTS, *sts) {
 		existingSTS.Spec = sts.Spec
-		if err := r.ctrlClient.Update(ctx, &existingSTS); err != nil {
+		if err = r.ctrlClient.Update(ctx, &existingSTS); err != nil {
+			reconcileStatus[SpireServerStatefulSetGeneration] = reconcilerStatus{
+				Status:  metav1.ConditionFalse,
+				Reason:  "SpireServerStatefulSetGenerationFailed",
+				Message: err.Error(),
+			}
 			return ctrl.Result{}, fmt.Errorf("failed to update StatefulSet: %w", err)
 		}
 		r.log.Info("Updated spire sever StatefulSet")
 	} else if err != nil {
+		r.log.Error(err, "failed to update spire server stateful set resource")
 		return ctrl.Result{}, err
 	}
-
+	reconcileStatus[SpireServerStatefulSetGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "SpireServerStatefulSetCreated",
+		Message: "spire server stateful set resources applied",
+	}
 	return ctrl.Result{}, nil
 }
 

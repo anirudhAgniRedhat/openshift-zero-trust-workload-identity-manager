@@ -71,7 +71,7 @@ func generateServerConfMap(config *v1alpha1.SpireServerConfigSpec) map[string]in
 						"plugin_data": map[string]interface{}{
 							"connection_string": config.Datastore.ConnectionString,
 							"database_type":     config.Datastore.DatabaseType,
-							"disable_migration": config.Datastore.DisableMigration,
+							"disable_migration": utils.StringToBool(config.Datastore.DisableMigration),
 							"max_idle_conns":    config.Datastore.MaxIdleConns,
 							"max_open_conns":    config.Datastore.MaxOpenConns,
 						},

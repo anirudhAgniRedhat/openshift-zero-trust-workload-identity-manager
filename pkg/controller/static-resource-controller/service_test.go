@@ -26,13 +26,7 @@ func TestStaticResourceReconciler_ListStaticServiceResource(t *testing.T) {
 			name:      "spire-server",
 			kind:      "Service",
 			namespace: "zero-trust-workload-identity-manager",
-			labels: map[string]string{
-				"app.kubernetes.io/name":       "server",
-				"app.kubernetes.io/instance":   "spire",
-				"app.kubernetes.io/version":    "1.12.0",
-				"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-				"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-			},
+			labels:    requiredServerResourceLabels,
 			ports: []corev1.ServicePort{
 				{
 					Name:       "grpc",
@@ -50,13 +44,7 @@ func TestStaticResourceReconciler_ListStaticServiceResource(t *testing.T) {
 			name:      "spire-spiffe-oidc-discovery-provider",
 			kind:      "Service",
 			namespace: "zero-trust-workload-identity-manager",
-			labels: map[string]string{
-				"app.kubernetes.io/name":       "spiffe-oidc-discovery-provider",
-				"app.kubernetes.io/instance":   "spire",
-				"app.kubernetes.io/version":    "1.12.0",
-				"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-				"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-			},
+			labels:    requiredOIDCResourceLabels,
 			ports: []corev1.ServicePort{
 				{
 					Name:       "https",
@@ -74,13 +62,7 @@ func TestStaticResourceReconciler_ListStaticServiceResource(t *testing.T) {
 			name:      "spire-controller-manager-webhook",
 			kind:      "Service",
 			namespace: "zero-trust-workload-identity-manager",
-			labels: map[string]string{
-				"app.kubernetes.io/name":       "server",
-				"app.kubernetes.io/instance":   "spire",
-				"app.kubernetes.io/version":    "1.12.0",
-				"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-				"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-			},
+			labels:    requiredServerResourceLabels,
 			ports: []corev1.ServicePort{
 				{
 					Name:       "https",
@@ -140,13 +122,7 @@ func TestGetSpireServerService(t *testing.T) {
 	assert.Equal(t, "Service", svc.Kind)
 	assert.Equal(t, "zero-trust-workload-identity-manager", svc.Namespace)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, svc.Labels)
 
 	assert.Len(t, svc.Spec.Ports, 1)
@@ -170,13 +146,7 @@ func TestGetSpireOIDCDiscoveryProviderService(t *testing.T) {
 	assert.Equal(t, "Service", svc.Kind)
 	assert.Equal(t, "zero-trust-workload-identity-manager", svc.Namespace)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "spiffe-oidc-discovery-provider",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredOIDCResourceLabels
 	assert.Equal(t, expectedLabels, svc.Labels)
 
 	assert.Len(t, svc.Spec.Ports, 1)
@@ -200,13 +170,7 @@ func TestGetSpireControllerMangerWebhookService(t *testing.T) {
 	assert.Equal(t, "Service", svc.Kind)
 	assert.Equal(t, "zero-trust-workload-identity-manager", svc.Namespace)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, svc.Labels)
 
 	assert.Len(t, svc.Spec.Ports, 1)

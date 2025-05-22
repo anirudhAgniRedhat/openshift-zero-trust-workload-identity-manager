@@ -32,13 +32,7 @@ func TestGetSpireAgentServiceAccount(t *testing.T) {
 	assert.Equal(t, "ServiceAccount", sa.Kind)
 	assert.Equal(t, "zero-trust-workload-identity-manager", sa.Namespace)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "agent",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredAgentResourceLabels
 	assert.Equal(t, expectedLabels, sa.Labels)
 }
 
@@ -50,13 +44,7 @@ func TestGetSpireOIDCDiscoveryProviderServiceAccount(t *testing.T) {
 	assert.Equal(t, "ServiceAccount", sa.Kind)
 	assert.Equal(t, "zero-trust-workload-identity-manager", sa.Namespace)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "spiffe-oidc-discovery-provider",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredOIDCResourceLabels
 	assert.Equal(t, expectedLabels, sa.Labels)
 }
 
@@ -68,13 +56,7 @@ func TestGetSpireServerServiceAccount(t *testing.T) {
 	assert.Equal(t, "ServiceAccount", sa.Kind)
 	assert.Equal(t, "zero-trust-workload-identity-manager", sa.Namespace)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, sa.Labels)
 }
 

@@ -5,6 +5,30 @@ import (
 	"testing"
 )
 
+var requiredAgentResourceLabels = map[string]string{
+	"app.kubernetes.io/name":       "agent",
+	"app.kubernetes.io/instance":   "spire",
+	"app.kubernetes.io/version":    "1.12.0",
+	"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
+	"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
+}
+
+var requiredServerResourceLabels = map[string]string{
+	"app.kubernetes.io/name":       "server",
+	"app.kubernetes.io/instance":   "spire",
+	"app.kubernetes.io/version":    "1.12.0",
+	"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
+	"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
+}
+
+var requiredOIDCResourceLabels = map[string]string{
+	"app.kubernetes.io/name":       "spiffe-oidc-discovery-provider",
+	"app.kubernetes.io/instance":   "spire",
+	"app.kubernetes.io/version":    "1.12.0",
+	"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
+	"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
+}
+
 func TestSpireAgentClusterRole(t *testing.T) {
 	r := &StaticResourceReconciler{}
 	cr := r.getSpireAgentClusterRole()
@@ -12,13 +36,7 @@ func TestSpireAgentClusterRole(t *testing.T) {
 	assert.Equal(t, "spire-agent", cr.Name)
 	assert.Equal(t, "ClusterRole", cr.Kind)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "agent",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredAgentResourceLabels
 	assert.Equal(t, expectedLabels, cr.Labels)
 
 	assert.Len(t, cr.Rules, 1)
@@ -33,13 +51,7 @@ func TestSpireAgentClusterRoleBinding(t *testing.T) {
 	assert.Equal(t, "spire-agent", crb.Name)
 	assert.Equal(t, "ClusterRoleBinding", crb.Kind)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "agent",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredAgentResourceLabels
 	assert.Equal(t, expectedLabels, crb.Labels)
 
 	assert.Equal(t, 1, len(crb.Subjects))
@@ -60,13 +72,7 @@ func TestSpireBundleRole(t *testing.T) {
 	assert.Equal(t, "Role", role.Kind)
 	assert.Equal(t, "zero-trust-workload-identity-manager", role.Namespace)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, role.Labels)
 
 	assert.Len(t, role.Rules, 1)
@@ -83,13 +89,7 @@ func TestSpireBundleRoleBinding(t *testing.T) {
 	assert.Equal(t, "RoleBinding", rb.Kind)
 	assert.Equal(t, "zero-trust-workload-identity-manager", rb.Namespace)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, rb.Labels)
 
 	assert.Equal(t, 1, len(rb.Subjects))
@@ -109,13 +109,7 @@ func TestSpireControllerManagerClusterRole(t *testing.T) {
 	assert.Equal(t, "spire-controller-manager", cr.Name)
 	assert.Equal(t, "ClusterRole", cr.Kind)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, cr.Labels)
 
 	assert.True(t, len(cr.Rules) > 0)
@@ -128,13 +122,7 @@ func TestSpireControllerManagerClusterRoleBinding(t *testing.T) {
 	assert.Equal(t, "spire-controller-manager", crb.Name)
 	assert.Equal(t, "ClusterRoleBinding", crb.Kind)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, crb.Labels)
 
 	assert.Equal(t, "ClusterRole", crb.RoleRef.Kind)
@@ -149,13 +137,7 @@ func TestSpireControllerManagerLeaderElectionRole(t *testing.T) {
 	assert.Equal(t, "spire-controller-manager-leader-election", role.Name)
 	assert.Equal(t, "Role", role.Kind)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, role.Labels)
 
 	assert.NotEmpty(t, role.Rules)
@@ -168,13 +150,7 @@ func TestSpireControllerManagerLeaderElectionRoleBinding(t *testing.T) {
 	assert.Equal(t, "spire-controller-manager-leader-election", rb.Name)
 	assert.Equal(t, "RoleBinding", rb.Kind)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, rb.Labels)
 
 	assert.Equal(t, "Role", rb.RoleRef.Kind)
@@ -189,13 +165,7 @@ func TestSpireServerClusterRole(t *testing.T) {
 	assert.Equal(t, "spire-server", cr.Name)
 	assert.Equal(t, "ClusterRole", cr.Kind)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, cr.Labels)
 
 	assert.NotEmpty(t, cr.Rules)
@@ -208,13 +178,7 @@ func TestSpireServerClusterRoleBinding(t *testing.T) {
 	assert.Equal(t, "spire-server", crb.Name)
 	assert.Equal(t, "ClusterRoleBinding", crb.Kind)
 
-	expectedLabels := map[string]string{
-		"app.kubernetes.io/name":       "server",
-		"app.kubernetes.io/instance":   "spire",
-		"app.kubernetes.io/version":    "1.12.0",
-		"app.kubernetes.io/managed-by": "zero-trust-workload-identity-manager",
-		"app.kubernetes.io/part-of":    "zero-trust-workload-identity-manager",
-	}
+	expectedLabels := requiredServerResourceLabels
 	assert.Equal(t, expectedLabels, crb.Labels)
 
 	assert.Equal(t, "ClusterRole", crb.RoleRef.Kind)

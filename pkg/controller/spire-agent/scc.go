@@ -16,7 +16,7 @@ func generateSpireAgentSCC(config *v1alpha1.SpireAgentConfig) *securityv1.Securi
 		"app":                      "spire-agent",
 		utils.AppManagedByLabelKey: utils.AppManagedByLabelValue,
 	}
-	for key, value := range config.Labels {
+	for key, value := range config.Spec.Labels {
 		labels[key] = value
 	}
 	return &securityv1.SecurityContextConstraints{

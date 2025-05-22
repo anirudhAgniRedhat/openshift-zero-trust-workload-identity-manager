@@ -5,7 +5,10 @@ import (
 	"fmt"
 	securityv1 "github.com/openshift/api/security/v1"
 	customClient "github.com/openshift/zero-trust-workload-identity-manager/pkg/client"
+	"k8s.io/apimachinery/pkg/api/equality"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -29,6 +32,17 @@ import (
 	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
 )
 
+type reconcilerStatus struct {
+	Status  metav1.ConditionStatus
+	Message string
+	Reason  string
+}
+
+const (
+	SpiffeCSIDaemonSetGeneration = "SpiffeCSIDaemonSetGeneration"
+	SpiffeCSISCCGeneration       = "SpiffeCSISCCGeneration"
+)
+
 // SpiffeCsiReconciler reconciles a SpiffeCsi object
 type SpiffeCsiReconciler struct {
 	ctrlClient    customClient.CustomCtrlClient
@@ -37,10 +51,6 @@ type SpiffeCsiReconciler struct {
 	log           logr.Logger
 	scheme        *runtime.Scheme
 }
-
-// +kubebuilder:rbac:groups=apps,resources=daemonsets,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=security.openshift.io,resources=securitycontextconstraints,verbs=get;list;watch;create;update;patch;delete
 
 // New returns a new Reconciler instance.
 func New(mgr ctrl.Manager) (*SpiffeCsiReconciler, error) {
@@ -67,33 +77,97 @@ func (r *SpiffeCsiReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, err
 	}
 
+	reconcileStatus := map[string]reconcilerStatus{}
+	defer func(reconcileStatus map[string]reconcilerStatus) {
+		originalStatus := spiffeCSIDriver.Status.DeepCopy()
+		if spiffeCSIDriver.Status.ConditionalStatus.Conditions == nil {
+			spiffeCSIDriver.Status.ConditionalStatus = v1alpha1.ConditionalStatus{
+				Conditions: []metav1.Condition{},
+			}
+		}
+		for key, value := range reconcileStatus {
+			newCondition := metav1.Condition{
+				Type:               key,
+				Status:             value.Status,
+				Reason:             value.Reason,
+				Message:            value.Message,
+				LastTransitionTime: metav1.Now(),
+			}
+			apimeta.SetStatusCondition(&spiffeCSIDriver.Status.ConditionalStatus.Conditions, newCondition)
+		}
+		newConfig := spiffeCSIDriver.DeepCopy()
+		if !equality.Semantic.DeepEqual(originalStatus, &spiffeCSIDriver.Status) {
+			if err := r.ctrlClient.StatusUpdate(ctx, newConfig); err != nil {
+				r.log.Error(err, "failed to update status")
+			}
+		}
+	}(reconcileStatus)
+
 	SpiffeCsiSCC := generateSpiffeCSIDriverSCC()
 	if err := controllerutil.SetControllerReference(&spiffeCSIDriver, SpiffeCsiSCC, r.scheme); err != nil {
+		r.log.Error(err, "failed to set the owner reference for the SCC resource")
+		reconcileStatus[SpiffeCSISCCGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpiffeCSISCCGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
 	}
 	err := r.ctrlClient.Create(ctx, SpiffeCsiSCC)
 	if err != nil && !kerrors.IsAlreadyExists(err) {
 		r.log.Error(err, "Failed to create SpiffeCsiSCC")
+		reconcileStatus[SpiffeCSISCCGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpiffeCSISCCGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
+	}
+	reconcileStatus[SpiffeCSISCCGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "SpiffeCSISCCResourceCreated",
+		Message: "SpiffeCSISCC resource created",
 	}
 
 	spiffeCsiDaemonset := generateSpiffeCsiDriverDaemonSet()
-	if err := controllerutil.SetControllerReference(&spiffeCSIDriver, spiffeCsiDaemonset, r.scheme); err != nil {
+	if err = controllerutil.SetControllerReference(&spiffeCSIDriver, spiffeCsiDaemonset, r.scheme); err != nil {
+		r.log.Error(err, "failed to set owner reference for the SCC resource")
+		reconcileStatus[SpiffeCSIDaemonSetGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpiffeCSIDaemonSetGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
 	}
 
-	// 5. Create or Update DaemonSet
+	// Create or Update DaemonSet
 	var existingSpiffeCsiDaemonSet appsv1.DaemonSet
 	err = r.ctrlClient.Get(ctx, types.NamespacedName{Name: spiffeCsiDaemonset.Name, Namespace: spiffeCsiDaemonset.Namespace}, &existingSpiffeCsiDaemonSet)
 	if err != nil && kerrors.IsNotFound(err) {
-		if err := r.ctrlClient.Create(ctx, spiffeCsiDaemonset); err != nil {
+		if err = r.ctrlClient.Create(ctx, spiffeCsiDaemonset); err != nil {
+			r.log.Error(err, "Failed to create SpiffeCsiDaemon set")
+			reconcileStatus[SpiffeCSIDaemonSetGeneration] = reconcilerStatus{
+				Status:  metav1.ConditionFalse,
+				Reason:  "SpiffeCSIDaemonSetGenerationFailed",
+				Message: err.Error(),
+			}
 			return ctrl.Result{}, fmt.Errorf("failed to create DaemonSet: %w", err)
 		}
 		r.log.Info("Created spire sever DaemonSet")
 	} else if err != nil {
+		r.log.Error(err, "Failed to get SpiffeCsiDaemon set")
+		reconcileStatus[SpiffeCSIDaemonSetGeneration] = reconcilerStatus{
+			Status:  metav1.ConditionFalse,
+			Reason:  "SpiffeCSIDaemonSetGenerationFailed",
+			Message: err.Error(),
+		}
 		return ctrl.Result{}, err
 	}
-
+	reconcileStatus[SpiffeCSIDaemonSetGeneration] = reconcilerStatus{
+		Status:  metav1.ConditionTrue,
+		Reason:  "SpiffeCSIDaemonSetCreated",
+		Message: "Spiffe CSI DaemonSet resource created",
+	}
 	return ctrl.Result{}, nil
 }
 

@@ -35,7 +35,7 @@ func GenerateAgentConfig(cfg *v1alpha1.SpireAgentConfig) map[string]interface{} 
 		},
 	}
 
-	if cfg.Spec.NodeAttestor != nil && cfg.Spec.NodeAttestor.K8sPSATEnabled {
+	if cfg.Spec.NodeAttestor != nil && cfg.Spec.NodeAttestor.K8sPSATEnabled == "true" {
 		agentConf["plugins"].(map[string]interface{})["NodeAttestor"] = []map[string]interface{}{
 			{
 				"k8s_psat": map[string]interface{}{
@@ -47,22 +47,13 @@ func GenerateAgentConfig(cfg *v1alpha1.SpireAgentConfig) map[string]interface{} 
 		}
 	}
 
-	if cfg.Spec.WorkloadAttestors != nil && cfg.Spec.WorkloadAttestors.K8sEnabled {
+	if cfg.Spec.WorkloadAttestors != nil && cfg.Spec.WorkloadAttestors.K8sEnabled == "true" {
 		plugin := map[string]interface{}{
-			"disable_container_selectors":    cfg.Spec.WorkloadAttestors.DisableContainerSelectors,
+			"disable_container_selectors":    utils.StringToBool(cfg.Spec.WorkloadAttestors.DisableContainerSelectors),
 			"node_name_env":                  "MY_NODE_NAME",
-			"use_new_container_locator":      cfg.Spec.WorkloadAttestors.UseNewContainerLocator,
+			"use_new_container_locator":      utils.StringToBool(cfg.Spec.WorkloadAttestors.UseNewContainerLocator),
 			"verbose_container_locator_logs": false,
 			"skip_kubelet_verification":      true,
-		}
-
-		if v := cfg.Spec.WorkloadAttestors.WorkloadAttestorsVerification; v != nil && v.Type != "" {
-			switch v.Type {
-			case "skip":
-				plugin["skip_kubelet_verification"] = true
-			case "hostCert", "apiServerCA", "auto":
-				plugin["skip_kubelet_verification"] = false
-			}
 		}
 
 		agentConf["plugins"].(map[string]interface{})["WorkloadAttestor"] = []map[string]interface{}{
@@ -75,9 +66,9 @@ func GenerateAgentConfig(cfg *v1alpha1.SpireAgentConfig) map[string]interface{} 
 
 func GenerateSpireAgentConfigMap(spireAgentConfig *v1alpha1.SpireAgentConfig) (*corev1.ConfigMap, string, error) {
 	agentConfig := GenerateAgentConfig(spireAgentConfig)
-	agentConfigJSON, err := json.Marshal(agentConfig)
+	agentConfigJSON, err := json.MarshalIndent(agentConfig, "", "  ")
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to marshal agent config JSON: %w", err)
+		return nil, "", fmt.Errorf("failed to marshal agent config: %w", err)
 	}
 
 	spireAgentConfigHash := utils.GenerateConfigHash(agentConfigJSON)
@@ -86,7 +77,7 @@ func GenerateSpireAgentConfigMap(spireAgentConfig *v1alpha1.SpireAgentConfig) (*
 		"app":                      "spire-agent",
 		utils.AppManagedByLabelKey: utils.AppManagedByLabelValue,
 	}
-	for key, value := range spireAgentConfig.Labels {
+	for key, value := range spireAgentConfig.Spec.Labels {
 		labels[key] = value
 	}
 	cm := &corev1.ConfigMap{

@@ -11,7 +11,7 @@ func generateSpireIODCDiscoveryProviderSpiffeID() *spiffev1alpha1.ClusterSPIFFEI
 			Name: "zero-trust-workload-identity-manager-spire-oidc-discovery-provider",
 		},
 		Spec: spiffev1alpha1.ClusterSPIFFEIDSpec{
-			ClassName:        "zero-trust-workload-identity-manager-spire",
+			//ClassName:        "zero-trust-workload-identity-manager-spire",
 			Hint:             "oidc-discovery-provider",
 			SPIFFEIDTemplate: "spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}",
 			DNSNameTemplates: []string{
@@ -49,7 +49,7 @@ func generateDefaultFallbackClusterSPIFFEID() *spiffev1alpha1.ClusterSPIFFEID {
 			Name: "zero-trust-workload-identity-manager-spire-default",
 		},
 		Spec: spiffev1alpha1.ClusterSPIFFEIDSpec{
-			ClassName:        "zero-trust-workload-identity-manager-spire",
+			//ClassName:        "zero-trust-workload-identity-manager-spire",
 			Hint:             "default",
 			SPIFFEIDTemplate: "spiffe://{{ .TrustDomain }}/ns/{{ .PodMeta.Namespace }}/sa/{{ .PodSpec.ServiceAccountName }}",
 			Fallback:         true,

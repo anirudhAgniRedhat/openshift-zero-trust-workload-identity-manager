@@ -22,7 +22,7 @@ metadata:
     capabilities: Basic Install
     console.openshift.io/disable-operand-delete: "true"
     containerImage: ""
-    createdAt: "2025-05-20T20:18:02Z"
+    createdAt: "2025-05-22T12:56:53Z"
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "false"
     features.operators.openshift.io/csi: "true"
@@ -291,16 +291,16 @@ spec:
                 - name: SPIRE_AGENT_IMAGE
                   value: ghcr.io/spiffe/spire-agent:1.12.0
                 - name: SPIFFE_CSI_DRIVER_IMAGE
-                  value: ghcr.io/spiffe/spiffe-csi-driver:0.2.3
+                  value: ghcr.io/spiffe/spiffe-csi-driver:0.2.7
                 - name: SPIRE_OIDC_DISCOVERY_PROVIDER_IMAGE
                   value: ghcr.io/spiffe/oidc-discovery-provider:1.12.0
                 - name: SPIRE_CONTROLLER_MANAGER_IMAGE
-                  value: ghcr.io/spiffe/spire-controller-manager:0.6.0
+                  value: ghcr.io/spiffe/spire-controller-manager:0.6.2
                 - name: SPIFFE_HELPER_IMAGE
-                  value: ghcr.io/spiffe/spiffe-helper:0.9.1
+                  value: ghcr.io/spiffe/spiffe-helper:0.10.0
                 - name: NODE_DRIVER_REGISTRAR_IMAGE
                   value: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.4
-                image: controller:latest
+                image: quay.io/rh-ee-aagnihot/zero-trust-workload-identity-manager:v0.0.17
                 livenessProbe:
                   httpGet:
                     path: /healthz

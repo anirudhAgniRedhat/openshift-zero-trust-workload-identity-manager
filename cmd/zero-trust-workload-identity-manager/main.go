@@ -39,9 +39,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	operatoropenshiftiov1alpha1 "github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
+	spiffeCsiDriverController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/spiffe-csi-driver"
+	spireAgentController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/spire-agent"
 	spireServerController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/spire-server"
 	staticResourceController "github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/static-resource-controller"
 	"github.com/openshift/zero-trust-workload-identity-manager/pkg/operator/bootstrap"
+
+	securityv1 "github.com/openshift/api/security/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -130,6 +134,12 @@ func main() {
 	config.QPS = 50    // Default is usually 5, increase as needed
 	config.Burst = 100 // Default is usually 10, increase as needed
 
+	// Add OpenShift SCC scheme
+	if err := securityv1.AddToScheme(scheme); err != nil {
+		// handle error properly, usually fatal log and os.Exit
+		panic(err)
+	}
+
 	mgr, err := ctrl.NewManager(config, ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsServerOptions,
@@ -167,6 +177,39 @@ func main() {
 	exitOnError(err, "unable to set up spire server controller manager")
 	if err = spireServerControllerManager.SetupWithManager(mgr); err != nil {
 		exitOnError(err, "unable to setup spire server controller manager")
+	}
+
+	spireServerControllerManager, err := spireServerController.New(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to set up spire server controller manager")
+		os.Exit(1)
+	}
+	if err = spireServerControllerManager.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "failed to set up spireServer controller with manager",
+			"controller", utils.ZeroTrustWorkloadIdentityManagerSpireServerControllerName, "manager")
+		os.Exit(1)
+	}
+
+	spireAgentControllerManager, err := spireAgentController.New(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to set up spire agent resource controller manager")
+		os.Exit(1)
+	}
+	if err = spireAgentControllerManager.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "failed to set SpireAgent controller with manager",
+			"controller", utils.ZeroTrustWorkloadIdentityManagerSpireAgentControllerName, "manager")
+		os.Exit(1)
+	}
+
+	spiffeCsiDriverControllerManager, err := spiffeCsiDriverController.New(mgr)
+	if err != nil {
+		setupLog.Error(err, "unable to set up spiffe csi driver resource controller manager")
+		os.Exit(1)
+	}
+	if err = spiffeCsiDriverControllerManager.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "failed to set spiffeCsiDriver controller with manager",
+			"controller", utils.ZeroTrustWorkloadIdentityManagerSpiffeCsiDriverControllerName, "manager")
+		os.Exit(1)
 	}
 
 	// +kubebuilder:scaffold:builder

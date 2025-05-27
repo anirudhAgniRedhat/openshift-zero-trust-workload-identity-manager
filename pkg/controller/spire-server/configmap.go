@@ -263,8 +263,9 @@ func generateControllerManagerConfigMap(configYAML string) *corev1.ConfigMap {
 			Name:      "spire-controller-manager",
 			Namespace: utils.OperatorNamespace,
 			Labels: map[string]string{
-				"app":                      "spire-controller-manager",
-				utils.AppManagedByLabelKey: utils.AppManagedByLabelValue,
+				"app.kubernetes.io/name":     "server",
+				"app.kubernetes.io/instance": "spire",
+				utils.AppManagedByLabelKey:   utils.AppManagedByLabelValue,
 			},
 		},
 		Data: map[string]string{

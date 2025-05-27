@@ -179,37 +179,20 @@ func main() {
 		exitOnError(err, "unable to setup spire server controller manager")
 	}
 
-	spireServerControllerManager, err := spireServerController.New(mgr)
-	if err != nil {
-		setupLog.Error(err, "unable to set up spire server controller manager")
-		os.Exit(1)
-	}
-	if err = spireServerControllerManager.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "failed to set up spireServer controller with manager",
-			"controller", utils.ZeroTrustWorkloadIdentityManagerSpireServerControllerName, "manager")
-		os.Exit(1)
-	}
-
 	spireAgentControllerManager, err := spireAgentController.New(mgr)
 	if err != nil {
-		setupLog.Error(err, "unable to set up spire agent resource controller manager")
-		os.Exit(1)
+		exitOnError(err, "unable to set up spire agent controller manager")
 	}
 	if err = spireAgentControllerManager.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "failed to set SpireAgent controller with manager",
-			"controller", utils.ZeroTrustWorkloadIdentityManagerSpireAgentControllerName, "manager")
-		os.Exit(1)
+		exitOnError(err, "unable to setup spire agent controller manager")
 	}
 
 	spiffeCsiDriverControllerManager, err := spiffeCsiDriverController.New(mgr)
 	if err != nil {
-		setupLog.Error(err, "unable to set up spiffe csi driver resource controller manager")
-		os.Exit(1)
+		exitOnError(err, "unable to set up spiffe csi driver controller manager")
 	}
 	if err = spiffeCsiDriverControllerManager.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "failed to set spiffeCsiDriver controller with manager",
-			"controller", utils.ZeroTrustWorkloadIdentityManagerSpiffeCsiDriverControllerName, "manager")
-		os.Exit(1)
+		exitOnError(err, "unable to setup spiffe csi driver controller manager")
 	}
 
 	// +kubebuilder:scaffold:builder

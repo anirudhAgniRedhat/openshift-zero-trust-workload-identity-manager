@@ -7,6 +7,7 @@ import (
 	securityv1 "github.com/openshift/api/security/v1"
 	"github.com/openshift/zero-trust-workload-identity-manager/api/v1alpha1"
 	"github.com/openshift/zero-trust-workload-identity-manager/pkg/controller/utils"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestGenerateSpireAgentSCC(t *testing.T) {
@@ -32,16 +33,20 @@ func TestGenerateSpireAgentSCC(t *testing.T) {
 		t.Errorf("expected labels %v, got %v", expectedLabels, scc.Labels)
 	}
 
+	if scc.Priority == nil || *scc.Priority != 10 {
+		t.Errorf("expected Priority to be 10, got %v", scc.Priority)
+	}
+
 	if !scc.ReadOnlyRootFilesystem {
 		t.Errorf("expected ReadOnlyRootFilesystem to be true")
 	}
 
 	if scc.RunAsUser.Type != securityv1.RunAsUserStrategyRunAsAny {
-		t.Errorf("expected RunAsUser.Type to be RunAsAny")
+		t.Errorf("expected RunAsUser.Type to be RunAsAny, got %s", scc.RunAsUser.Type)
 	}
 
-	if scc.SELinuxContext.Type != securityv1.SELinuxStrategyRunAsAny {
-		t.Errorf("expected SELinuxContext.Type to be RunAsAny")
+	if scc.SELinuxContext.Type != securityv1.SELinuxStrategyMustRunAs {
+		t.Errorf("expected SELinuxContext.Type to be MustRunAs, got %s", scc.SELinuxContext.Type)
 	}
 
 	if scc.SupplementalGroups.Type != securityv1.SupplementalGroupsStrategyRunAsAny {
@@ -71,8 +76,8 @@ func TestGenerateSpireAgentSCC(t *testing.T) {
 	if !scc.AllowHostDirVolumePlugin {
 		t.Errorf("expected AllowHostDirVolumePlugin to be true")
 	}
-	if !scc.AllowHostIPC {
-		t.Errorf("expected AllowHostIPC to be true")
+	if scc.AllowHostIPC {
+		t.Errorf("expected AllowHostIPC to be false")
 	}
 	if !scc.AllowHostNetwork {
 		t.Errorf("expected AllowHostNetwork to be true")
@@ -83,11 +88,11 @@ func TestGenerateSpireAgentSCC(t *testing.T) {
 	if !scc.AllowHostPorts {
 		t.Errorf("expected AllowHostPorts to be true")
 	}
-	if scc.AllowPrivilegeEscalation == nil || !*scc.AllowPrivilegeEscalation {
-		t.Errorf("expected AllowPrivilegeEscalation to be true")
+	if scc.AllowPrivilegeEscalation == nil || *scc.AllowPrivilegeEscalation {
+		t.Errorf("expected AllowPrivilegeEscalation to be false")
 	}
-	if !scc.AllowPrivilegedContainer {
-		t.Errorf("expected AllowPrivilegedContainer to be true")
+	if scc.AllowPrivilegedContainer {
+		t.Errorf("expected AllowPrivilegedContainer to be false")
 	}
 
 	if len(scc.AllowedCapabilities) != 0 {
@@ -96,8 +101,9 @@ func TestGenerateSpireAgentSCC(t *testing.T) {
 	if len(scc.DefaultAddCapabilities) != 0 {
 		t.Errorf("expected DefaultAddCapabilities to be empty")
 	}
-	if len(scc.RequiredDropCapabilities) != 0 {
-		t.Errorf("expected RequiredDropCapabilities to be empty")
+	expectedDropCapabilities := []corev1.Capability{"ALL"}
+	if !reflect.DeepEqual(scc.RequiredDropCapabilities, expectedDropCapabilities) {
+		t.Errorf("expected RequiredDropCapabilities to be %v, got %v", expectedDropCapabilities, scc.RequiredDropCapabilities)
 	}
 	if len(scc.Groups) != 0 {
 		t.Errorf("expected Groups to be empty")

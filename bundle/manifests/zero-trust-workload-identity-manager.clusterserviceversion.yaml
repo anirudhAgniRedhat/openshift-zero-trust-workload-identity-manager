@@ -22,7 +22,7 @@ metadata:
     capabilities: Basic Install
     console.openshift.io/disable-operand-delete: "true"
     containerImage: openshift.io/zero-trust-workload-identity-manager
-    createdAt: "2025-09-03T15:14:06Z"
+    createdAt: "2025-10-06T04:32:27Z"
     features.operators.openshift.io/cnf: "false"
     features.operators.openshift.io/cni: "false"
     features.operators.openshift.io/csi: "true"
@@ -342,7 +342,7 @@ spec:
                   value: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.4
                 - name: RELATED_IMAGE_SPIFFE_CSI_INIT_CONTAINER
                   value: registry.access.redhat.com/ubi9:latest
-                image: openshift.io/zero-trust-workload-identity-manager:latest
+                image: quay.io/rh-ee-aagnihot/zero-trust-workload-identity-manager:v0.1.40
                 livenessProbe:
                   httpGet:
                     path: /healthz
